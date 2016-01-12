@@ -84,6 +84,7 @@ contains
     type (mpas_pool_type), pointer :: tracersPool
     type (mpas_pool_type), pointer :: verticalMeshPool
     type (mpas_pool_type), pointer :: forcingPool
+    type (mpas_pool_type), pointer :: tracersSurfaceRestoringFieldsPool, tracersInteriorRestoringFieldsPool
 
     ! local variables
     integer :: iCell, k, idx
@@ -110,6 +111,8 @@ contains
     real (kind=RKIND), dimension(:), pointer :: windStressZonal, windStressMeridional
     real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness
     real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
+       real (kind=RKIND), dimension(:, :), pointer ::    activeTracersPistonVelocity, activeTracersSurfaceRestoringValue
+       real (kind=RKIND), dimension(:, :, :), pointer :: activeTracersInteriorRestoringValue, activeTracersInteriorRestoringRate
 
    ! config flags
     real (kind=RKIND) :: config_zapiola_rise_basin_radius
@@ -126,6 +129,8 @@ contains
     real (kind=RKIND) :: config_zapiola_rise_wind_center_lat
     real (kind=RKIND) :: config_zapiola_rise_ref_zonal_wind
     real (kind=RKIND) :: config_zapiola_rise_bottom_depth
+    real (kind=RKIND) :: config_zapiola_rise_piston_velocity
+    real (kind=RKIND) :: config_zapiola_rise_interior_restore_rate
 
     ! local variables
     real (kind=RKIND) :: radiusEarth, degToRad, radToDeg, distToCenterOfBasin,distToCenterOfZR,depthShelf,depthZR
@@ -182,6 +187,10 @@ contains
     config_zapiola_rise_wind_center_lat = -64.0
     config_zapiola_rise_ref_zonal_wind=0.1
 
+    ! restoring values
+    config_zapiola_rise_piston_velocity = 5.0e-5
+    config_zapiola_rise_interior_restore_rate = 5.0e-8
+
     radiusEarth = a
 
     block_ptr => domain % blocklist
@@ -226,6 +235,8 @@ contains
        vertCoordMovementWeights(:) = 1.0_RKIND
        degToRad = pii/180.0_RKIND
        radToDeg = 1/degToRad
+
+       layerThickness(:,:) = 0.0_RKIND
 
        do iCell = 1, nCellsSolve
 
@@ -301,10 +312,12 @@ contains
           end do
 
           ! Set layerThickness and restingThickness
-          do k = 1, nVertLevels
+          do k = 1, maxLevelCell(iCell) - 1
              layerThickness(k, iCell) = refLayerThickness(k)
-             restingThickness(k, iCell) = refLayerThickness(k)
           end do
+          k = maxLevelCell(iCell)
+          layerThickness(k, iCell) = bottomDepth(iCell) - refBottomDepth(k-1)
+          restingThickness(:, iCell) = layerThickness(:, iCell)
 
        end do
     block_ptr => block_ptr % next
@@ -312,14 +325,53 @@ contains
 
     deallocate(interfaceLocations)
 
-       block_ptr => domain % blocklist
-       do while (associated(block_ptr))
-          call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
-
-          call ocn_mark_maxlevelcell(meshPool, iErr)
-          block_ptr => block_ptr % next
-       end do
     !--------------------------------------------------------------------
+    ! Set restoring variables
+    !--------------------------------------------------------------------
+    block_ptr => domain % blocklist
+    do while (associated(block_ptr))
+       call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
+
+       call ocn_mark_maxlevelcell(meshPool, iErr)
+       block_ptr => block_ptr % next
+    end do
+
+    block_ptr => domain % blocklist
+    do while(associated(block_ptr))
+       call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
+       call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
+       call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
+
+       call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
+       call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
+
+       call mpas_pool_get_subpool(forcingPool, 'tracersSurfaceRestoringFields', tracersSurfaceRestoringFieldsPool)
+       call mpas_pool_get_subpool(forcingPool, 'tracersInteriorRestoringFields', tracersInteriorRestoringFieldsPool)
+       call mpas_pool_get_array(tracersSurfaceRestoringFieldsPool, 'activeTracersSurfaceRestoringValue', activeTracersSurfaceRestoringValue, 1)
+       call mpas_pool_get_array(tracersSurfaceRestoringFieldsPool, 'activeTracersPistonVelocity', activeTracersPistonVelocity, 1)
+       call mpas_pool_get_array(tracersInteriorRestoringFieldsPool, 'activeTracersInteriorRestoringValue', activeTracersInteriorRestoringValue, 1)
+       call mpas_pool_get_array(tracersInteriorRestoringFieldsPool, 'activeTracersInteriorRestoringRate', activeTracersInteriorRestoringRate, 1)
+
+       ! set interior restoring values and rate
+       if ( associated(activeTracersInteriorRestoringValue) .and. associated(activeTracers) ) then
+          activeTracersInteriorRestoringValue(:, :, :) = activeTracers(:, :, :)
+       end if
+
+       if ( associated(activeTracersInteriorRestoringRate) ) then
+          activeTracersInteriorRestoringRate(:, :, :) = config_zapiola_rise_interior_restore_rate
+       end if
+
+       ! set surface restoring values and rate
+       if ( associated(activeTracersSurfaceRestoringValue) .and. associated(activeTracers) ) then
+          activeTracersSurfaceRestoringValue(:, :) = activeTracers(:, 1, :)
+       end if
+
+       if ( associated(activeTracersPistonVelocity) ) then
+          activeTracersPistonVelocity(:, :) = config_zapiola_rise_piston_velocity
+       end if
+
+       block_ptr => block_ptr % next
+    end do
 
   end subroutine ocn_init_setup_zapiola_rise!}}}
 
