@@ -84,6 +84,7 @@ contains
     type (mpas_pool_type), pointer :: tracersPool
     type (mpas_pool_type), pointer :: verticalMeshPool
     type (mpas_pool_type), pointer :: forcingPool
+    type (mpas_pool_type), pointer :: diagnosticsPool
     type (mpas_pool_type), pointer :: tracersSurfaceRestoringFieldsPool, tracersInteriorRestoringFieldsPool
 
     ! local variables
@@ -109,7 +110,7 @@ contains
          vertCoordMovementWeights, bottomDepth, &
          fCell, fEdge, fVertex, dcEdge
     real (kind=RKIND), dimension(:), pointer :: windStressZonal, windStressMeridional
-    real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness
+    real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness, zMid
     real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
        real (kind=RKIND), dimension(:, :), pointer ::    activeTracersPistonVelocity, activeTracersSurfaceRestoringValue
        real (kind=RKIND), dimension(:, :, :), pointer :: activeTracersInteriorRestoringValue, activeTracersInteriorRestoringRate
@@ -131,10 +132,11 @@ contains
     real (kind=RKIND) :: config_zapiola_rise_bottom_depth
     real (kind=RKIND) :: config_zapiola_rise_piston_velocity
     real (kind=RKIND) :: config_zapiola_rise_interior_restore_rate
+    character (len=StrKIND) :: config_zapiola_rise_layer_type
 
     ! local variables
     real (kind=RKIND) :: radiusEarth, degToRad, radToDeg, distToCenterOfBasin,distToCenterOfZR,depthShelf,depthZR
-    real (kind=RKIND) :: referenceTemperature,distToCenterWindLat
+    real (kind=RKIND) :: referenceTemperature,distToCenterWindLat, zTop
 
     iErr = 0
 
@@ -165,6 +167,7 @@ contains
     !--------------------------------------------------------------------
 
     ! Basin geometry
+    config_zapiola_rise_layer_type = 'sigma' !'z-level' 
     config_zapiola_rise_bottom_depth=6000.0
     config_zapiola_rise_basin_radius=3200e3
     config_zapiola_rise_basin_center_lon = -20.0
@@ -181,7 +184,13 @@ contains
     ! Shelf geometry
     config_zapiola_rise_shelf_offset = -0.15
     config_zapiola_rise_shelf_scale= 0.05
-    config_zapiola_rise_shelf_depth = 150.0
+    if ( trim(config_zapiola_rise_layer_type) == 'z-level' ) then
+       config_zapiola_rise_shelf_depth = 150.0
+    else if ( trim(config_zapiola_rise_layer_type) == 'sigma') then
+       config_zapiola_rise_shelf_depth = 2000.0
+    else
+       print *, 'Incorrect config_zapiola_rise_layer_type:',config_zapiola_rise_layer_type
+    end if
 
     ! Wind stress parameter
     config_zapiola_rise_wind_center_lat = -64.0
@@ -199,6 +208,7 @@ contains
        call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
        call mpas_pool_get_subpool(block_ptr % structs, 'verticalMesh', verticalMeshPool)
        call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
+       call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
        call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
        call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
@@ -216,6 +226,7 @@ contains
 
        call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
        call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, 1)
+       call mpas_pool_get_array(diagnosticsPool, 'zMid',zMid)
 
        call mpas_pool_get_array(verticalMeshPool, 'refZMid', refZMid)
        call mpas_pool_get_array(verticalMeshPool, 'refLayerThickness',refLayerThickness)
@@ -266,15 +277,19 @@ contains
 
              bottomDepth(iCell)=min(min(depthShelf,depthZR),config_zapiola_rise_basin_max_depth)
 
-             maxLevelCell(iCell) = nVertLevels
-             do k = 1, nVertLevels
-                if (refBottomDepth(k) >= bottomDepth(iCell)) then
-                   maxLevelCell(iCell) = k
-                   exit
-                end if
-             end do
+             if ( trim(config_zapiola_rise_layer_type) == 'z-level' ) then
+                maxLevelCell(iCell) = nVertLevels
+                do k = 1, nVertLevels
+                   if (refBottomDepth(k) >= bottomDepth(iCell)) then
+                      maxLevelCell(iCell) = k
+                      exit
+                   end if
+                end do
 
-             call ocn_alter_bottomDepth_for_pbcs(bottomDepth(iCell), refBottomDepth, maxLevelCell(iCell), iErr)
+                call ocn_alter_bottomDepth_for_pbcs(bottomDepth(iCell), refBottomDepth, maxLevelCell(iCell), iErr)
+             else if ( trim(config_zapiola_rise_layer_type) == 'sigma') then
+                maxLevelCell(iCell) = nVertLevels
+             end if
 
           else
              bottomDepth(iCell)= 0.0_RKIND
@@ -294,6 +309,30 @@ contains
 
           windStressMeridional(iCell) = 0.0_RKIND
 
+
+          !--------------------------------------------------------------------
+          ! Set layerThickness and restingThickness
+          !--------------------------------------------------------------------
+          if ( trim(config_zapiola_rise_layer_type) == 'z-level' ) then
+             do k = 1, maxLevelCell(iCell) - 1
+                layerThickness(k, iCell) = refLayerThickness(k)
+             end do
+             k = maxLevelCell(iCell)
+             layerThickness(k, iCell) = bottomDepth(iCell) - refBottomDepth(k-1)
+          else if ( trim(config_zapiola_rise_layer_type) == 'sigma') then
+             do k = 1, maxLevelCell(iCell)
+                layerThickness(k, iCell) = refLayerThickness(k)*bottomDepth(iCell)/refBottomDepth(nVertLevels)
+             end do
+          end if
+          restingThickness(:, iCell) = layerThickness(:, iCell)
+
+          zTop = 0.0_RKIND
+          ! compute zMid based on the layer thickness
+          do k = 1, maxLevelCell(iCell)
+             zMid(k,iCell) = zTop - 0.5_RKIND*layerThickness(k, iCell)
+             zTop = zTop - layerThickness(k, iCell)
+          end do
+
           !--------------------------------------------------------------------
           ! Compute temperature
           !--------------------------------------------------------------------
@@ -302,7 +341,7 @@ contains
           idx = index_temperature
           referenceTemperature=1.0_RKIND+tanh( (latCell(iCell)*radToDeg+40.0_RKIND)/10.0_RKIND )
           do k = 1, nVertLevels
-             activeTracers(idx, k, iCell) = 1.0_RKIND+11.0_RKIND*referenceTemperature*exp(refZMid(k)/500.0_RKIND)
+             activeTracers(idx, k, iCell) = 1.0_RKIND+11.0_RKIND*referenceTemperature*exp(zMid(k,iCell)/500.0_RKIND)
           end do
 
           ! Set salinity
@@ -311,13 +350,6 @@ contains
              activeTracers(idx, k, iCell) = 35.0_RKIND
           end do
 
-          ! Set layerThickness and restingThickness
-          do k = 1, maxLevelCell(iCell) - 1
-             layerThickness(k, iCell) = refLayerThickness(k)
-          end do
-          k = maxLevelCell(iCell)
-          layerThickness(k, iCell) = bottomDepth(iCell) - refBottomDepth(k-1)
-          restingThickness(:, iCell) = layerThickness(:, iCell)
 
        end do
     block_ptr => block_ptr % next
