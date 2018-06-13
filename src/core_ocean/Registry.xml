@@ -226,6 +226,18 @@
 	<!--*************************************-->
 	<!-- Namelists for forward run mode only -->
 	<!--*************************************-->
+
+        <nml_record name="reduced_precision" mode="forward">
+                <nml_option name="config_use_reduced_precision" type="logical" default_value=".false." units="unitless"
+                                       description="If true, reduced precision floating-point implementation is used."
+                                       possible_values=".true. or .false."
+                />
+                <nml_option name="config_reduced_precision_digits" type="integer" default_value="10" units="unitless"
+                                        description="Round to specified number of decimal digits."
+                                        possible_values="any positive integer less than or equal to 17"
+                />
+        </nml_record>
+
 	<nml_record name="time_integration" mode="forward">
 		<nml_option name="config_dt" type="character" default_value="00:05:00" units="unitless"
 					description="Length of model time-step."

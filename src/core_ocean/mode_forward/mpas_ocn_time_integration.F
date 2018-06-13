@@ -33,6 +33,7 @@ module ocn_time_integration
    use ocn_constants
    use ocn_time_integration_rk4
    use ocn_time_integration_split
+   use ocn_rounding
 
    implicit none
    private
@@ -93,6 +94,9 @@ module ocn_time_integration
       real (kind=RKIND), intent(in) :: dt
       character(len=*), intent(in) :: timeStamp
 
+      integer, pointer :: config_reduced_precision_digits
+      logical, pointer :: config_use_reduced_precision
+
       type (dm_info) :: dminfo
       type (block_type), pointer :: block
 
@@ -103,11 +107,19 @@ module ocn_time_integration
       character (len=StrKIND), pointer :: simulationStartTime
       type (MPAS_Time_type) :: xtime_timeType, simulationStartTime_timeType
 
-
       if (rk4On) then
          call ocn_time_integrator_rk4(domain, dt)
       elseif (splitOn) then
          call ocn_time_integrator_split(domain, dt)
+     endif
+
+     call mpas_pool_get_config(domain % configs, 'config_use_reduced_precision', config_use_reduced_precision)
+     call mpas_pool_get_config(domain % configs, 'config_reduced_precision_digits', config_reduced_precision_digits)
+
+     if (config_use_reduced_precision) then
+        call mpas_timer_start("rounding")
+        call rounding(domain, config_reduced_precision_digits)
+        call mpas_timer_stop("rounding")
      endif
 
      block => domain % blocklist
@@ -159,7 +171,6 @@ module ocn_time_integration
           call mpas_log_write('Incorrect choice for config_time_integrator:' // trim(config_time_integrator) // &
              '   choices are: RK4, split_explicit, unsplit_explicit', MPAS_LOG_CRIT)
       endif
-
 
    end subroutine ocn_timestep_init!}}}
 
