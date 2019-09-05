@@ -133,6 +133,7 @@ module ocn_core_interface
       logical, pointer :: tracerGroupBulkRestoringPKGActive
       logical, pointer :: tracerGroupSurfaceRestoringPKGActive
       logical, pointer :: tracerGroupInteriorRestoringPKGActive
+      logical, pointer :: tracerGroupAOTPKGActive
       logical, pointer :: tracerGroupExponentialDecayPKGActive
       logical, pointer :: tracerGroupIdealAgePKGActive
       logical, pointer :: tracerGroupTTDPKGActive
@@ -141,6 +142,7 @@ module ocn_core_interface
       logical, pointer :: config_use_tracerGroup_surface_bulk_forcing
       logical, pointer :: config_use_tracerGroup_surface_restoring
       logical, pointer :: config_use_tracerGroup_interior_restoring
+      logical, pointer :: config_use_tracerGroup_AOT_data_assimilation
       logical, pointer :: config_use_tracerGroup_exponential_decay
       logical, pointer :: config_use_tracerGroup_idealAge_forcing
       logical, pointer :: config_use_tracerGroup_ttd_forcing
@@ -378,6 +380,14 @@ module ocn_core_interface
                   call mpas_pool_get_package(packagePool, packageName, tracerGroupInteriorRestoringPKGActive)
                   tracerGroupInteriorRestoringPKGActive = .true.
                end if
+
+!               configName = 'config_use_' // trim(tracerGroupName) //'_AOT_data_assimilation'
+!               call mpas_pool_get_config(configPool, configName, config_use_tracerGroup_AOT_data_assimilation)
+!               if ( config_use_tracerGroup_AOT_data_assimilation ) then
+!                  packageName = trim(tracerGroupName) // 'AOTPKGActive'
+!                  call mpas_pool_get_package(packagePool, packageName, tracerGroupAOTPKGActive)
+!                  tracerGroupAOTPKGActive = .true.
+!               end if
 
                configName = 'config_use_' // trim(tracerGroupName) // '_exponential_decay'
                call mpas_pool_get_config(configPool, configName, config_use_tracerGroup_exponential_decay)

@@ -27,6 +27,10 @@
 			description="if true, surface restoring source is applied to tracers in 'ecosysGRP' category"
 			possible_values=".true. or .false."
 		/>
+                <nml_option name="config_use_ecosysTracers_AOT_data_assimilation" type="logical" default_value=".false." units="unitless"
+			description="if true, the AOT data assimilation algorithm is applied to tracers in 'ecosysGRP' category"
+			possible_values=".true. or .false."
+		/>
 		<nml_option name="config_use_ecosysTracers_interior_restoring" type="logical" default_value=".false." units="unitless"
 			description="if true, interior restoring source is applied to tracers in 'ecosysGRP' category"
 			possible_values=".true. or .false."

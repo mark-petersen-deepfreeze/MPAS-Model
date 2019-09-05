@@ -257,6 +257,7 @@ module ocn_time_integration_split
       call mpas_pool_get_config(domain % configs, 'config_num_halos', config_num_halos)
 
       call mpas_pool_get_config(domain % configs, 'config_compute_active_tracer_budgets', config_compute_active_tracer_budgets)
+!      config_n_ts_iter = 1
       allocate(n_bcl_iter(config_n_ts_iter))
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -585,7 +586,6 @@ module ocn_time_integration_split
                   enddo
                   barotropicForcing(iEdge) = split * normalThicknessFluxSum / thicknessSum / dt
 
-
                   do k = 1, maxLevelEdgeTop(iEdge)
                      ! These two steps are together here:
                      !{\bf u}'_{k,n+1} = {\bf u}'_{k,n} - \Delta t {\overline {\bf G}}
@@ -671,7 +671,6 @@ module ocn_time_integration_split
                      ! in tendency calls in stage 3.
                      normalTransportVelocity(k,iEdge) = edgeMask(k,iEdge) &
                            *( normalBaroclinicVelocityNew(k,iEdge) + normalGMBolusVelocity(k,iEdge) )
-
                   enddo
                end do  ! iEdge
                !$omp end do
@@ -823,7 +822,6 @@ module ocn_time_integration_split
                             + dt / nBtrSubcycles * (CoriolisTerm - gravity &
                             * (sshSubcycleCur(cell2) - sshSubcycleCur(cell1) ) &
                             / dcEdge(iEdge) + barotropicForcing(iEdge)))
-
                      end do
                      !$omp end do
 
@@ -1951,7 +1949,7 @@ module ocn_time_integration_split
       integer, dimension(:), pointer :: maxLevelEdgeTop
       integer, dimension(:,:), pointer :: cellsOnEdge
       real (kind=RKIND) :: normalThicknessFluxSum, layerThicknessSum, layerThicknessEdge1
-      real (kind=RKIND), dimension(:), pointer :: refBottomDepth, normalBarotropicVelocity
+      real (kind=RKIND), dimension(:), pointer :: refBottomDepth, normalBarotropicVelocity, angleEdge
 
       real (kind=RKIND), dimension(:,:), pointer :: layerThickness
       real (kind=RKIND), dimension(:,:), pointer :: normalBaroclinicVelocity, normalVelocity
@@ -2016,6 +2014,7 @@ module ocn_time_integration_split
             call mpas_pool_get_array(meshPool, 'refBottomDepth', refBottomDepth)
             call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
             call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdgeTop)
+            call mpas_pool_get_array(meshPool, 'angleEdge', angleEdge)
 
             ! Compute barotropic velocity at first timestep
             ! This is only done upon start-up.
@@ -2039,10 +2038,19 @@ module ocn_time_integration_split
                      layerThickness(1,iCell) = refBottomDepth(1)
                   enddo
                endif
+            
+!                      print *, 'max value of initial normalVelocity = ', maxval(abs(normalVelocity))
 
                do iEdge = 1, nEdges
                   cell1 = cellsOnEdge(1,iEdge)
                   cell2 = cellsOnEdge(2,iEdge)
+
+
+                   ! THIS ALTERNATE INITIAL CONDITION IS FOR AOT DATA
+                   ! ASSIMILATION; THE USUAL IC IS 0
+                   do k=1,maxLevelEdgeTop(iEdge)
+                        normalVelocity(k,iEdge) = 0.1*(cos(angleEdge(iEdge)) + sin(angleEdge(iEdge)))
+                   enddo
 
                   ! normalBarotropicVelocity = sum(h*u)/sum(h) on each edge
                   ! ocn_diagnostic_solve has not yet been called, so compute hEdge
@@ -2075,9 +2083,12 @@ module ocn_time_integration_split
                   ! normalBaroclinicVelocity=0, normalVelocity=0 on land cells
                   do k = maxLevelEdgeTop(iEdge)+1, nVertLevels
                      normalBaroclinicVelocity(k,iEdge) = 0.0_RKIND
+
                      normalVelocity(k,iEdge) = 0.0_RKIND
                   enddo
                enddo
+
+!                      print *, 'max value of initial normalVelocity = ', maxval(abs(normalVelocity))
 
                if (config_filter_btr_mode) then
                   ! filter normalBarotropicVelocity out of initial condition

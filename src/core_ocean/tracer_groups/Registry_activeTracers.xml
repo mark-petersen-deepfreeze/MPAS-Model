@@ -15,6 +15,10 @@
 			description="if true, interior restoring source is applied to tracers in 'activeTracers' category"
 			possible_values=".true. or .false."
 		/>
+		<nml_option name="config_use_activeTracers_AOT_data_assimilation" type="logical" default_value=".false." units="unitless"
+			description="if true, AOT data assimilation alorithm is applied to tracers in 'activeTracers' category"
+			possible_values=".true. or .false."
+		/>
 		<nml_option name="config_use_activeTracers_exponential_decay" type="logical" default_value=".false." units="unitless"
 			description="if true, exponential decay source is applied to tracers in 'activeTracers' category"
 			possible_values=".true. or .false."
@@ -47,6 +51,7 @@
 			description="Flag to enable salinity restoring under sea ice.  The default setting is false, where salinity restoring tapers from full restoring in the open ocean (iceFraction=0.0) to zero restoring below full sea ice coverage (iceFraction=1.0); below partial sea ice coverage, restoring is in proportion to iceFraction.  If true, full salinity restoring is used everywhere, regardless of iceFraction value"
 			possible_values=".true. or .false."
 		/>
+
 	</nml_record>
 
 	<packages>
@@ -138,6 +143,16 @@
 				/>
 			</var_array>
 		</var_struct>
+                <var_struct name="tracersAOTdata" time_levs="1">
+                        <var_array name="activeTracersAOTObservedData" type="real" dimensions="nVertLevels nCells Time">
+                                <var name="temperatureAOTObservedData" array_group="activeGRP" units="{s}^-1"
+                         description="Observed temperature data for AOT data assimilation algorithm"
+                                />
+                                <var name="salinityAOTObservedData" array_group="activeGRP" units="{s}^-1"
+                         description="Observed salinity data for AOT data assimilation algorithm"
+                                />
+                        </var_array>
+                </var_struct>
 		<var_struct name="tracersInteriorRestoringFields" time_levs="1">
 			<var_array name="activeTracersInteriorRestoringRate" type="real" dimensions="nVertLevels nCells Time" packages="activeTracersInteriorRestoringPKG">
 				<var name="temperatureInteriorRestoringRate" array_group="activeGRP" units="{s}^-1"

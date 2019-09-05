@@ -15,6 +15,10 @@
 			description="if true, interior restoring source is applied to tracers in 'DMSGRP' category"
 			possible_values=".true. or .false."
 		/>
+                <nml_option name="config_use_DMSTracers_AOT_data_assimilation" type="logical" default_value=".false." units="unitless"
+			description="if true, the AOT data assimilation algorithm is applied to tracers in 'DMSGRP' category"
+			possible_values=".true. or .false."
+		/>
 		<nml_option name="config_use_DMSTracers_exponential_decay" type="logical" default_value=".false." units="unitless"
 			description="if true, exponential decay source is applied to tracers in 'DMSGRP' category"
 			possible_values=".true. or .false."

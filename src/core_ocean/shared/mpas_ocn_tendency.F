@@ -59,6 +59,8 @@ module ocn_tendency
    use ocn_vel_forcing
    use ocn_vmix
    use ocn_wetting_drying
+   use ocn_AOT_DA_TS
+   use ocn_AOT_DA_velocity
 
    implicit none
    private
@@ -229,19 +231,21 @@ contains
         tend_normalVelocity, circulation, relativeVorticity, viscosity, kineticEnergyCell, &
         normalizedRelativeVorticityEdge, normalizedPlanetaryVorticityEdge, &
         montgomeryPotential, vertAleTransportTop, divergence, vertViscTopOfEdge, &
-        inSituThermalExpansionCoeff, inSituSalineContractionCoeff
+        inSituThermalExpansionCoeff, inSituSalineContractionCoeff, &
+       velocityX_obs, velocityY_obs
       real (kind=RKIND), dimension(:,:), pointer :: wettingVelocity
+
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
+      real (kind=RKIND) :: velocityTend_mu
 
       integer :: timeLevel
 
       integer :: err, iEdge, iCell
-      integer, pointer :: indexTemperature, indexSalinity, nEdges, nCells
-
-      logical, pointer :: config_disable_vel_all_tend
+      integer, pointer :: indexTemperature, indexSalinity, nEdges, nCells, nEdges_obs, nCells_obs
       logical, pointer :: config_use_wetting_drying
       logical, pointer :: config_prevent_drying
-      character (len=StrKIND), pointer :: config_pressure_gradient_type
+      logical, pointer :: config_disable_vel_all_tend, config_AOT_DA_on
+      character (len=StrKIND), pointer :: config_pressure_gradient_type, xtime, simulationStartTime
 
       if (present(timeLevelIn)) then
          timeLevel = timeLevelIn
@@ -253,18 +257,21 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_pressure_gradient_type', config_pressure_gradient_type)
       call mpas_pool_get_config(ocnConfigs, 'config_use_wetting_drying', config_use_wetting_drying)
       call mpas_pool_get_config(ocnConfigs, 'config_prevent_drying', config_prevent_drying)
+      call mpas_pool_get_config(ocnConfigs, 'config_AOT_DA_on', config_AOT_DA_on)
 
       call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
       call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
+     
+!      call mpas_pool_get_dimension(meshPool, 'nEdges_obs', nEdges_obs)
+!      call mpas_pool_get_dimension(meshPool, 'nCells_obs', nCells_obs)
 
       call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevel)
       call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
       call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, timeLevel)
-      call mpas_pool_get_dimension(tracersPool, 'index_temperature', indexTemperature)
-      call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
-
+      call mpas_pool_get_array(diagnosticsPool, 'xtime', xtime)
+      call mpas_pool_get_array(diagnosticsPool, 'simulationStartTime', simulationStartTime)
       call mpas_pool_get_array(diagnosticsPool, 'kineticEnergyCell', kineticEnergyCell)
       call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
       call mpas_pool_get_array(diagnosticsPool, 'vertAleTransportTop', vertAleTransportTop)
@@ -364,6 +371,21 @@ contains
          tend_normalVelocity(:, iEdge) = tend_normalVelocity(:, iEdge) * (1.0_RKIND - wettingVelocity(:, iEdge))
       end do
       !$omp end do
+      ! velocity tendency: AOT data assimilation on horizontal velocities
+      !
+!      print *, 'tend array size input', shape(tend_normalVelocity)
+!      print *, 'input array size input', shape(normalVelocity)
+      if(config_AOT_DA_on .and. xtime .NE. simulationStartTime) then
+         call mpas_pool_get_array(forcingPool, 'velocityX_obs', velocityX_obs)
+         call mpas_pool_get_array(forcingPool, 'velocityY_obs', velocityY_obs)
+!         print *, 'xtime = ', xtime
+!         print *, 'size of velocityX = ', shape(velocityX_obs)
+!         print *, 'velocityX = ', velocityX_obs(1,1)
+!         print *, 'velocityY = ', velocityY_obs(1,1)
+         call ocn_AOT_DA_velocity_init(velocityTend_mu, err)
+         call ocn_AOT_DA_velocity_tend(meshPool, normalVelocity, velocityX_obs, velocityY_obs, velocityTend_mu, tend_normalVelocity, err)
+!         call ocn_AOT_DA_debug_velocity_tend(meshPool, normalVelocity, 1.0, 1.0, velocityTend_mu, tend_normalVelocity, err)
+      endif
 
       !
       ! velocity tendency: vertical mixing d/dz( nu_v du/dz))
@@ -408,22 +430,26 @@ contains
       type (mpas_pool_type), pointer :: tracersSurfaceFluxPool                  ! surface fluxes
       type (mpas_pool_type), pointer :: tracersSurfaceRestoringFieldsPool       ! surface restoring
       type (mpas_pool_type), pointer :: tracersInteriorRestoringFieldsPool      ! interior restoring
+      type (mpas_pool_type), pointer :: tracersAOTDataPool                      ! AOT observed data
       type (mpas_pool_type), pointer :: tracersExponentialDecayFieldsPool       ! exponential decay
       type (mpas_pool_type), pointer :: tracersIdealAgeFieldsPool               ! ideal age
       type (mpas_pool_type), pointer :: tracersTTDFieldsPool                    ! transit time distribution
 
       ! scalar pointers
-      integer :: nTracerGroup
-      integer, pointer :: nVertLevels, nEdges, nCells, nCellsSolve, indexTemperature, indexSalinity
+      integer :: nTracerGroup, nDebugTracers, nActiveTracers
+      integer, pointer :: nVertLevels, nEdges, nCells, nCellsSolve, indexTemperature, indexSalinity, index_tracer1
       logical, pointer :: config_disable_tr_all_tend, config_use_cvmix_kpp
       logical, pointer :: config_use_tracerGroup, config_use_tracerGroup_surface_bulk_forcing, &
                           config_use_tracerGroup_surface_restoring, config_use_tracerGroup_interior_restoring, &
                           config_use_tracerGroup_exponential_decay, config_use_tracerGroup_idealAge_forcing, &
-                          config_use_tracerGroup_ttd_forcing, config_use_surface_salinity_monthly_restoring
+                          config_use_tracerGroup_ttd_forcing, config_use_surface_salinity_monthly_restoring, &
+                          config_use_tracerGroup_AOT_data_assimilation 
 
       logical, pointer :: config_compute_active_tracer_budgets, &
-                          config_cvmix_kpp_nonlocal_with_implicit_mix
-     real (kind=RKIND), pointer :: salinity_restoring_constant_piston_velocity
+                          config_cvmix_kpp_nonlocal_with_implicit_mix, &
+                          config_AOT_DA_on
+      real (kind=RKIND), pointer :: salinity_restoring_constant_piston_velocity
+      character (len=StrKIND), pointer :: xtime, simulationStartTime
 
       ! iterator for tracer categories
       type (mpas_pool_iterator_type) :: groupItr
@@ -435,37 +461,40 @@ contains
       real (kind=RKIND), dimension(:), pointer :: penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL
       real (kind=RKIND), dimension(:), pointer :: tracerGroupExponentialDecayRate, latCell
       integer, dimension(:), pointer :: maxLevelCell
-
+      real (kind=RKIND), pointer :: temperature_obs, salinity_obs
+      
       !
       ! two dimensional pointers
       !
       real (kind=RKIND), dimension(:,:), pointer :: tracerGroupPistonVelocity, tracerGroupSurfaceRestoringValue, &
                                                     tracerGroupIdealAgeMask, tracerGroupTTDMask
-
       real (kind=RKIND), dimension(:,:), pointer :: &
         normalTransportVelocity, layerThickness,vertAleTransportTop, layerThicknessEdge, vertDiffTopOfCell, &
         normalThicknessFlux, tracerGroupSurfaceFlux, fractionAbsorbed, zMid, relativeSlopeTopOfEdge, &
         relativeSlopeTapering, relativeSlopeTaperingCell, fractionAbsorbedRunoff, tracerGroupSurfaceFluxRunoff, &
         tracerGroupSurfaceFluxRemoved, nonLocalSurfaceTracerFlux
 
+
       !
       ! three dimensional pointers
       !
       real (kind=RKIND), dimension(:,:,:), pointer :: &
-        tracerGroup, tracerGroupTend, vertNonLocalFlux
+        tracerGroup, tracerGroupTend, vertNonLocalFlux, activeTracerTend, debugTracerTend
 
       real (kind=RKIND), dimension(:,:,:), pointer :: &
         activeTracers, &  !  need T, S for ecosys
-        ecosysTracers     !  need ecosys for DMS and MacroMolecules
+        ecosysTracers, &  !  need ecosys for DMS and MacroMolecules
+        debugTracers      !  basic debugging tracer (specifically for testing AOT)
 
-      real (kind=RKIND), dimension(:,:,:), pointer :: tracerGroupInteriorRestoringRate, tracerGroupInteriorRestoringValue
+      real (kind=RKIND), dimension(:,:,:), pointer :: tracerGroupInteriorRestoringRate, tracerGroupInteriorRestoringValue, tracerGroupAOTObservedData
+!      real (kind=RKIND), dimension(:,:), pointer :: 
 
       real (kind=RKIND), dimension(:,:,:), pointer :: &
         activeTracerSurfaceFluxTendency,              &
         activeTracerNonLocalTendency
 
       real (kind=RKIND), dimension(:,:), pointer :: &
-        temperatureShortWaveTendency
+        temperatureShortWaveTendency, temperatureAOTObservedData, salinityAOTObservedData
 
       !
       ! Field pointers
@@ -477,6 +506,7 @@ contains
       !
       integer :: err, iCell, iEdge, k, timeLevel, nTracersEcosys
       logical :: activeTracersOnly    ! if true, only compute for active tracers
+      real (kind=RKIND) :: tracer_mu
 
       !
       ! set time level of optional argument is present
@@ -509,6 +539,7 @@ contains
       call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
       call mpas_pool_get_dimension(tracersPool, 'index_temperature', indexTemperature)
       call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
+      call mpas_pool_get_dimension(tracersPool, 'index_tracer1', index_tracer1)
 
       !
       ! get configure options
@@ -537,6 +568,9 @@ contains
       call mpas_pool_get_array(forcingPool, 'fractionAbsorbedRunoff', fractionAbsorbedRunoff)
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
       call mpas_pool_get_array(meshPool, 'latCell', latCell)
+
+      call mpas_pool_get_array(diagnosticsPool, 'xtime', xtime)
+      call mpas_pool_get_array(diagnosticsPool, 'simulationStartTime', simulationStartTime)
 
       call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
       call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
@@ -591,6 +625,8 @@ contains
                call mpas_pool_get_config(ocnConfigs, modifiedConfigName, config_use_tracerGroup_surface_restoring)
                modifiedConfigName = 'config_use_' // trim(groupItr % memberName) // '_interior_restoring'
                call mpas_pool_get_config(ocnConfigs, modifiedConfigName, config_use_tracerGroup_interior_restoring)
+               modifiedConfigName = 'config_use_' // trim(groupItr % memberName) // '_AOT_data_assimilation'
+               call mpas_pool_get_config(ocnConfigs, modifiedConfigName, config_use_tracerGroup_AOT_data_assimilation)
                modifiedConfigName = 'config_use_' // trim(groupItr % memberName) // '_exponential_decay'
                call mpas_pool_get_config(ocnConfigs, modifiedConfigName, config_use_tracerGroup_exponential_decay)
                modifiedConfigName = 'config_use_' // trim(groupItr % memberName) // '_idealAge_forcing'
@@ -753,6 +789,23 @@ contains
                         tracerGroup, tracerGroupInteriorRestoringRate, tracerGroupInteriorRestoringValue, tracerGroupTend, err)
                      call mpas_timer_stop("interior_restoring_" // trim(groupItr % memberName))
                 endif
+
+               !
+               ! AOT data assimilation tendency for active tracers (temperature
+               ! and salinity
+               !
+               if(config_use_tracerGroup_AOT_data_assimilation .and. xtime .NE. simulationStartTime) then 
+                     call mpas_pool_get_subpool(forcingPool, 'tracersAOTdata', tracersAOTDataPool)
+                     modifiedGroupName = trim(groupItr % memberName) // "AOTObservedData"
+                     call mpas_pool_get_array(tracersAOTDataPool, trim(modifiedGroupName), &
+                                           tracerGroupAOTObservedData)
+
+                     call ocn_AOT_DA_TS_init(tracer_mu,err)
+                     call ocn_AOT_DA_TS_compute(nTracerGroup, nCells, maxLevelCell, tracerGroup, &
+                                             tracerGroupAOTObservedData, tracer_mu, tracerGroupTend, layerThickness, err)
+!                 call ocn_AOT_DA_TS_compute_debug(nTracerGroup, nCells, maxLevelCell, tracerGroup, 2.0, tracer_mu, tracerGroupTend, err)
+               endif
+
 
                !
                ! exponential decay tendency

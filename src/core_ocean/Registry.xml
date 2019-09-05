@@ -226,6 +226,20 @@
 	<!--*************************************-->
 	<!-- Namelists for forward run mode only -->
 	<!--*************************************-->
+       <nml_record name="AOT_data_assimilation" mode="forward">
+                <nml_option name="config_AOT_DA_on" type="logical" default_value=".false." units="unitless"
+                            description="If true, then the AOT data assimilation algorithm is active."
+                            possible_values=".true. or .false."
+                 />
+                <nml_option name="config_AOT_DA_mu_vel" type="real" default_value="0.0" units="s^{-1}"
+                            description="Positive relaxation parameter for driving the model horizontal velocity towards the data; must be < 2/dt"
+                            possible_values="Any positive real value."
+                 />
+                <nml_option name="config_AOT_DA_mu_TS" type="real" default_value="0.0" units="s^{-1}"
+                            description="Positive relaxation parameter for driving the model horizontal velocity towards the data; must be < 2/dt"
+                            possible_values="Any positive real value."
+                 />
+       </nml_record>
 	<nml_record name="time_integration" mode="forward">
 		<nml_option name="config_dt" type="character" default_value="00:05:00" units="unitless"
 					description="Length of model time-step."
@@ -1565,6 +1579,7 @@
 			<var name="landIceFraction"/>
 			<var name="landIceDraft"/>
 		</stream>
+
 		<stream name="block_debug_output"
 				type="output"
 				filename_template="output_debug_block_$B.nc"
@@ -1958,7 +1973,6 @@
 
 			<var name="pointCellGlobalID"/>
 		</stream>
-
 	</streams>
 
 	<var_struct name="state" time_levs="2">
@@ -2921,7 +2935,12 @@
 		<var name="nForcingGroupCounter"		type="integer"	dimensions="Time"/>
 		<var name="forcingGroupNames"			type="text"	dimensions="nForcingGroupsMax Time"/>
 		<var name="forcingGroupRestartTimes"		type="text"	dimensions="nForcingGroupsMax Time"/>
-
+                <var name="velocityX_obs" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                         description="observed x-component of horizontal velocity"
+                />
+                <var name="velocityY_obs" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                         description="observed y-component of horizontal velocity"
+                />
 		<!-- *********************************************************************
 
 				The fields listed below are constituent fields for coupling.
