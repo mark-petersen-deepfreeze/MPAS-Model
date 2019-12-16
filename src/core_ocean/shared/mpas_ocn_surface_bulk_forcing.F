@@ -471,7 +471,6 @@ contains
       if (bulkThicknessFluxOn) then
          !$omp do schedule(runtime)
          do iCell = 1, nCells
-
            ! Accumulate fluxes that use the surface temperature
            tracersSurfaceFlux(index_temperature_flux, iCell) = tracersSurfaceFlux(index_temperature_flux, iCell) &
                       + (rainFlux(iCell) + evaporationFlux(iCell)) * tracerGroup(index_temperature_flux,1,iCell) / rho_sw

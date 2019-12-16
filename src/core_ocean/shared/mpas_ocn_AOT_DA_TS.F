@@ -15,6 +15,9 @@
 !> \details
 !>  This module contains routines for assimilating temperature and salinity
 !>  observations via the AOT algorithm.
+!>  NOTE: THIS ROUTINE ONLY HOLDS IF THE INTERPOLATOR BACK TO THE MPAS GRID IS
+!>  LINEAR!! (currently, these interpolators are all found in the
+!>  mpas_ocn_init_interpolation.F file and they are all linear)
 !
 !-----------------------------------------------------------------------
 

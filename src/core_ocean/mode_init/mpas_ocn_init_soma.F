@@ -85,7 +85,7 @@ contains
       type (mpas_pool_type), pointer :: meshPool, verticalMeshPool, statePool, forcingPool, tracersPool
       type (mpas_pool_type), pointer :: tracersSurfaceRestoringFieldsPool, tracersInteriorRestoringFieldsPool
 
-      integer :: iCell, iEdge, iVertex, k, idx
+      integer :: iCell, iEdge, iVertex, k, idx, iVertLevels
       real (kind=RKIND) :: distance, deltaLon, deltaLat, xDistance, yDistance, zMid, sphereRadius
       real (kind=RKIND) :: lonCurrent, latCurrent
       real (kind=RKIND) :: deltay, depth, factor, latCenter, lonCenter, windStress
@@ -365,8 +365,16 @@ contains
 
 
            ! Set up debugging tracers
+           ! SOMA AOT Test particle tracking along bathymetry; usually the
+           ! middle index is simply all vertical levels
            if ( associated(debugTracers) ) then
-              debugTracers(index_tracer1, :, iCell) = 1.0_RKIND
+              do iVertLevels = 1, nVertLevels
+                 if ( iVertLevels .eq. maxLevelCell(iCell) ) then
+                    debugTracers(index_tracer1, iVertLevels, iCell) = 1.0_RKIND
+                 else
+                    debugTracers(index_tracer1, iVertLevels, iCell) = 0.0_RKIND !!! original
+                 endif
+              enddo
            end if
 
         end do ! iCell = 1, nCells

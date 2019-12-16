@@ -16,6 +16,9 @@
 !>  This module contains the routine for updating the horizontal velocity
 !>  tendency with the AOT data assimilation algorithm (current version: AOT
 !>  only on the normalVelocity, no interpolation)
+!>  NOTE: THIS ROUTINE ONLY HOLDS IF THE INTERPOLATOR BACK TO THE MPAS GRID IS
+!>  LINEAR!! (currently, these interpolators are all found in the
+!>  mpas_ocn_init_interpolation.F file and they are all linear)
 !
 !-----------------------------------------------------------------------
 
@@ -72,7 +75,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_AOT_DA_velocity_tend(meshPool, normalVelocity, & 
+   subroutine ocn_AOT_DA_velocity_tend(meshPool, velocityX_interp, velocityY_interp, & 
                                         velocityX_interp_obs, velocityY_interp_obs, &
                                         velocityTend_mu, tend, err)!{{{
 
@@ -83,9 +86,10 @@ contains
       !-----------------------------------------------------------------
 
       real (kind=RKIND), dimension(:,:), intent(in) :: &
-         normalVelocity, &        !< Input: normal velocity
-         velocityX_interp_obs, &  !< Input: x-horizontal velocity
-         velocityY_interp_obs     !< Input: y-horizontal velocity
+         velocityX_interp_obs, &  !< Input: interpolated observed x-horizontal velocity
+         velocityY_interp_obs, &  !< Input: interpolated observed y-horizontal velocity
+         velocityX_interp, &      !< Input: interpolated x-horizontal velocity
+         velocityY_interp         !< Input: interpolated y-horizontal velocity
 
       type (mpas_pool_type), intent(in) :: &
          meshPool          !< Input: mesh information
@@ -159,9 +163,8 @@ contains
           cell2 = cellsOnEdge(2, iEdge)
           do k = 1, maxLevelEdgeTop(iEdge)
                tend(k,iEdge) = tend(k,iEdge) + velocityTend_mu * & 
-                              (  (cos(angleEdge(iEdge)) * (0.5*(velocityX_interp_obs(k,cell1) + velocityX_interp_obs(k,cell2))) + &
-                                  sin(angleEdge(iEdge)) * (0.5*(velocityY_interp_obs(k,cell1) + velocityY_interp_obs(k,cell2))) ) &
-                                - normalVelocity(k,iEdge))
+                              (  cos(angleEdge(iEdge)) * (0.5*(velocityX_interp_obs(k,cell1) - velocityX_interp(k,cell1) + velocityX_interp_obs(k,cell2) - velocityX_interp(k,cell2))) + &
+                                  sin(angleEdge(iEdge)) * (0.5*(velocityY_interp_obs(k,cell1) - velocityY_interp(k,cell1) + velocityY_interp_obs(k,cell2) - velocityY_interp(k,cell2)))     )
 !               print *, 'normal vel', normalVelocity(k,iEdge)
 !               print *, 'normal vel obs', (cos(angleEdge(iEdge)) * &
 !(0.5*(velocityX_interp_obs(k,cell1) + velocityX_interp_obs(k,cell2))) + &

@@ -605,9 +605,11 @@ contains
                           tracerGroupSurfaceFlux)
                endif
 
+               if (trim(groupItr % memberName) == 'activeTracers') then !!!! THIS IS ONLY HERE FOR THE SOMA TEST CASE; DELETE OTHERWISE
                call ocn_tracer_vmix_tend_implicit(meshPool, dt, vertDiffTopOfCell, layerThickness, tracersGroup, &
                         vertNonLocalFlux, tracerGroupSurfaceFlux,  &
                         config_cvmix_kpp_nonlocal_with_implicit_mix, err)
+               endif
             end if
 
             ! difference tracers to compute influence of vertical mixing and divide by dt

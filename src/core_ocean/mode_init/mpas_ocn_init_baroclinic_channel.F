@@ -156,7 +156,7 @@ contains
 
       allocate(interfaceLocations(nVertLevelsP1))
       call ocn_generate_vertical_grid( config_vertical_grid, interfaceLocations )
-
+     
       ! Initalize min/max values to large positive and negative values
       yMin = 1.0E10_RKIND
       yMax = -1.0E10_RKIND

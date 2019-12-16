@@ -158,7 +158,6 @@ contains
 
       ! Build surface mass flux array from bulk
       call ocn_surface_bulk_forcing_thick(meshPool, forcingPool, surfaceThicknessFlux, surfaceThicknessFluxRunoff, err)
-
       ! Build surface thickness flux array from land ice
       call ocn_surface_land_ice_fluxes_thick(meshPool, forcingPool, surfaceThicknessFlux, err)
 
@@ -223,6 +222,7 @@ contains
       integer, intent(in), optional :: timeLevelIn !< Input: Time level for state fields
 
       type (mpas_pool_type), pointer :: tracersPool
+!      type (MPAS_Stream_type) :: inputObsStream, outputInterpStream
 
       real (kind=RKIND), dimension(:), pointer :: surfaceStress, surfaceStressMagnitude, surfaceFluxAttenuationCoefficient
       real (kind=RKIND), dimension(:,:), pointer :: &
@@ -232,7 +232,7 @@ contains
         normalizedRelativeVorticityEdge, normalizedPlanetaryVorticityEdge, &
         montgomeryPotential, vertAleTransportTop, divergence, vertViscTopOfEdge, &
         inSituThermalExpansionCoeff, inSituSalineContractionCoeff, &
-       velocityX_obs, velocityY_obs
+       velocityZonal_obs, velocityMeridional_obs
       real (kind=RKIND), dimension(:,:), pointer :: wettingVelocity
 
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
@@ -240,12 +240,14 @@ contains
 
       integer :: timeLevel
 
-      integer :: err, iEdge, iCell
-      integer, pointer :: indexTemperature, indexSalinity, nEdges, nCells, nEdges_obs, nCells_obs
+      integer :: err, iEdge, iCell, nLat, nLon, iErr
+      integer, pointer :: indexTemperature, indexSalinity, nEdges, nCells, nEdges_obs, nCells_obs, nVertLevels
       logical, pointer :: config_use_wetting_drying
       logical, pointer :: config_prevent_drying
       logical, pointer :: config_disable_vel_all_tend, config_AOT_DA_on
       character (len=StrKIND), pointer :: config_pressure_gradient_type, xtime, simulationStartTime
+
+      iErr = 0
 
       if (present(timeLevelIn)) then
          timeLevel = timeLevelIn
@@ -261,6 +263,7 @@ contains
 
       call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
       call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
+      call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
      
 !      call mpas_pool_get_dimension(meshPool, 'nEdges_obs', nEdges_obs)
 !      call mpas_pool_get_dimension(meshPool, 'nCells_obs', nCells_obs)
@@ -376,14 +379,142 @@ contains
 !      print *, 'tend array size input', shape(tend_normalVelocity)
 !      print *, 'input array size input', shape(normalVelocity)
       if(config_AOT_DA_on .and. xtime .NE. simulationStartTime) then
-         call mpas_pool_get_array(forcingPool, 'velocityX_obs', velocityX_obs)
-         call mpas_pool_get_array(forcingPool, 'velocityY_obs', velocityY_obs)
-!         print *, 'xtime = ', xtime
-!         print *, 'size of velocityX = ', shape(velocityX_obs)
-!         print *, 'velocityX = ', velocityX_obs(1,1)
-!         print *, 'velocityY = ', velocityY_obs(1,1)
-         call ocn_AOT_DA_velocity_init(velocityTend_mu, err)
-         call ocn_AOT_DA_velocity_tend(meshPool, normalVelocity, velocityX_obs, velocityY_obs, velocityTend_mu, tend_normalVelocity, err)
+!         call mpas_pool_get_array(forcingPool, 'velocityZonal_obs', velocityZonal_obs)
+!         call mpas_pool_get_array(forcingPool, 'velocityMeridional_obs', velocityMeridional_obs)
+!         call mpas_pool_get_array(forcingPool, 'velocityZonal_interp', velocityZonal_interp)
+!         call mpas_pool_get_array(forcingPool, 'velocityMeridional_interp', velocityMeridional_interp)
+      !!!!!! Read in interpolated horizontal velocity from output_interp file   !!!!!!          
+
+!      call mpas_pool_get_config(domain % configs,'config_input_obs_file', config_input_obs_file)
+!
+!      call MPAS_createStream(inputObsStream, domain % iocontext, config_input_obs_file, &
+!           MPAS_IO_NETCDF, MPAS_IO_READ, ierr=iErr)
+!!!!! LIKELY NEED THIS FOR DEBUGGING LATER !!!!
+!!      call MPAS_io_inq_dim(inputFile, 'lat', nLat, iErr)
+!!      if(iErr /= 0) then
+!!         call mpas_log_write( 'Validation failed for AOT input data. Could not find dim lat in file:'// &
+!!            trim(config_input_obs_file) , MPAS_LOG_CRIT)
+!!         return
+!!      end if
+!!
+!!      call MPAS_io_inq_dim(inputFile, 'lon', nLon, iErr)
+!!      if(iErr /= 0) then
+!!         call mpas_log_write( 'Validation failed for AOT input data. Could not find dim lon in file:'// &
+!!            trim(config_input_obs_file) , MPAS_LOG_CRIT)
+!!         return
+!!      end if
+!!
+!!      call MPAS_io_inq_dim(inputFile, 'nVertLevels', nVertLevels, iErr)
+!!      if(iErr /= 0) then
+!!         call mpas_log_write( 'Validation failed for AOT input data. Could not find dim nVertLevels in file:'// &
+!!            trim(config_input_obs_file) , MPAS_LOG_CRIT)
+!!         return
+!!      end if
+!
+!       ! Setup velocity input fields for stream to be read in
+!       lat_in % fieldName = 'lat'
+!       lat_in % dimSizes(1) = nLat 
+!       lat_in % dimNames(1) = 'lat'
+!       lat_in % isVarArray = .false.
+!       lat_in % isPersistent = .true.
+!       lat_in % isActive = .true.
+!       lat_in % hasTimeDimension = .false.
+!       lat_in % block => domain % blocklist
+!       allocate(lat_in % attLists(1))
+!       allocate(lat_in % array(nLat))  
+!
+!       iVertLevels_obs % fieldName = 'nVertLevels'
+!       iVertLevels_obs % dimSizes(1) = nVertLevels_obs 
+!       iVertLevels_obs % dimNames(1) = 'nVertLevels'
+!       iVertLevels_obs % isVarArray = .false.
+!       iVertLevels_obs % isPersistent = .true.
+!       iVertLevels_obs % isActive = .true.
+!       iVertLevels_obs % hasTimeDimension = .false.
+!       iVertLevels_obs % block => domain % blocklist
+!       allocate(iVertLevels_obs % attLists(1))
+!       allocate(iVertLevels_obs % array(nVertLevels_obs))  
+!
+!       lon_in % fieldName = 'lon'
+!       lon_in % dimSizes(1) = nLon 
+!       lon_in % dimNames(1) = 'lon'
+!       lon_in % isVarArray = .false.
+!       lon_in % isPersistent = .true.
+!       lon_in % isActive = .true.
+!       lon_in % hasTimeDimension = .false.
+!       lon_in % block => domain % blocklist
+!       allocate(lon_in % attLists(1))
+!       allocate(lon_in % array(nLon))  
+!
+!       velocityZonal_obs % fieldName = 'velocityZonal'
+!       velocityZonal_obs % dimSizes(1) = nLat
+!       velocityZonal_obs % dimSizes(2) = nLon
+!       velocityZonal_obs % dimSizes(3) = nVertLevels_obs
+!       velocityZonal_obs % dimNames(1) = 'lat'
+!       velocityZonal_obs % dimNames(2) = 'lon'
+!       velocityZonal_obs % dimNames(3) = 'nVertLevels'
+!       velocityZonal_obs % isVarArray = .false.
+!       velocityZonal_obs % isPersistent = .true.
+!       velocityZonal_obs % isActive = .true.
+!       velocityZonal_obs % hasTimeDimension = .false.
+!       velocityZonal_obs % block => domain % blocklist
+!       allocate(velocityZonal_obs % attLists(1))
+!       allocate(velocityZonal_obs % array(nLat, nLon, nVertLevels_obs))
+!
+!       velocityMeridional_obs % fieldName = 'velocityMeridional'
+!       velocityMeridional_obs % dimSizes(1) = nLat
+!       velocityMeridional_obs % dimSizes(2) = nLon
+!       velocityMeridional_obs % dimSizes(3) = nVertLevels_obs
+!       velocityMeridional_obs % dimNames(1) = 'lat'
+!       velocityMeridional_obs % dimNames(2) = 'lon'
+!       velocityMeridional_obs % dimNames(3) = 'nVertLevels'
+!       velocityMeridional_obs % isVarArray = .false.
+!       velocityMeridional_obs % isPersistent = .true.
+!       velocityMeridional_obs % isActive = .true.
+!       velocityMeridional_obs % hasTimeDimension = .false.
+!       velocityMeridional_obs % block => domain % blocklist
+!       allocate(velocityMeridional_obs % attLists(1))
+!       allocate(velocityMeridional_obs % array(nLat, nLon, nVertLevels_obs))
+!
+!!       velocityZonal_interp % fieldName = 'velocityZonal'
+!!       velocityZonal_interp % dimSizes(1) = nLat_interp
+!!       velocityZonal_interp % dimSizes(2) = nLon_interp
+!!       velocityZonal_interp % dimSizes(3) = nVertLevels_interp
+!!       velocityZonal_interp % dimNames(1) = 'lat'
+!!       velocityZonal_interp % dimNames(2) = 'lon'
+!!       velocityZonal_interp % dimNames(3) = 'nVertLevels'
+!!       velocityZonal_interp % isVarArray = .false.
+!!       velocityZonal_interp % isPersistent = .true.
+!!       velocityZonal_interp % isActive = .true.
+!!       velocityZonal_interp % hasTimeDimension = .false.
+!!       velocityZonal_interp % block => domain % blocklist
+!!       allocate(velocityZonal_interp % attLists(1))
+!!       allocate(velocityZonal_interp % array(nLat, nLon, nVertLevels))
+!!
+!!       velocityMeridional_interp % fieldName = 'velocityMeridional'
+!!       velocityMeridional_interp % dimSizes(1) = nLat
+!!       velocityMeridional_interp % dimSizes(2) = nLon
+!!       velocityMeridional_interp % dimSizes(3) = nVertLevels
+!!       velocityMeridional_interp % dimNames(1) = 'lat'
+!!       velocityMeridional_interp % dimNames(2) = 'lon'
+!!       velocityMeridional_interp % dimNames(3) = 'nVertLevels'
+!!       velocityMeridional_interp % isVarArray = .false.
+!!       velocityMeridional_interp % isPersistent = .true.
+!!       velocityMeridional_interp % isActive = .true.
+!!       velocityMeridional_interp % hasTimeDimension = .false.
+!!       velocityMeridional_interp % block => domain % blocklist
+!       
+!       call MPAS_streamAddField(inputObsStream, lat_in, iErr)
+!       call MPAS_streamAddField(inputObsStream, lon_in, iErr)
+!       call MPAS_streamAddField(inputObsStream, velocityZonal_obs, iErr)
+!       call MPAS_streamAddField(inputObsStream, velocityMeridional_obs, iErr)
+!
+!       call MPAS_readStream(inputObsStream, 1, iErr)
+!       call MPAS_closeStream(inputObsStream)
+!
+!       call ocn
+!         !!!! INTERPOLATE THESE FIELDS BACK TO THE MPAS GRID !!!! 
+!         call ocn_AOT_DA_velocity_init(velocityTend_mu, err)
+!         call ocn_AOT_DA_velocity_tend(meshPool, velocityZonal_obs, velocityMeridional_obs, velocityZonal_obs, velocityMeridional_obs, velocityTend_mu, tend_normalVelocity, err)
 !         call ocn_AOT_DA_debug_velocity_tend(meshPool, normalVelocity, 1.0, 1.0, velocityTend_mu, tend_normalVelocity, err)
       endif
 
