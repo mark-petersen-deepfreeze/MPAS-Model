@@ -239,6 +239,22 @@
                             description="Positive relaxation parameter for driving the model horizontal velocity towards the data; must be < 2/dt"
                             possible_values="Any positive real value."
                  />
+		<nml_option name="config_input_obs_file" type="character" default_value="obs_data_0.5x0.5degree.nc" units="unitless"
+			description="Path to gridded observed data file."
+			possible_values="Path to file, generally titled obs_data_0.5x0.5degree.nc."
+		/>
+                <nml_option name="config_input_interp_file" type="character" default_value="interp_data_0.5x0.5degree.nc" units="unitless"
+                        description="Path to gridded data from previous time step file."
+                        possible_values="Path to file, generally titled interp_data_0.5x0.5degree.nc."
+                />
+                <nml_option name="config_cell_mask_file" type="character" default_value="cell_mask.nc" units="unitless"
+                        description="Path to cell_mask file for testing."
+                        possible_values="/lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/isopycnal_3layer_compil+interp/ocean/soma/32km/3layer/forward/output/cell_mask.nc"
+                />
+                <nml_option name="config_cell_mask_obs_file" type="character" default_value="cell_mask_8km.nc" units="unitless"
+                        description="Path to cell_mask file for testing."
+                        possible_values="/lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/isopycnal_3layer_compil+interp/ocean/soma/32km/3layer/forward/output/cell_mask_8km.nc"
+                />
        </nml_record>
 	<nml_record name="time_integration" mode="forward">
 		<nml_option name="config_dt" type="character" default_value="00:05:00" units="unitless"
@@ -2578,6 +2594,10 @@
 			 description="component of horizontal velocity in the z-direction (cartesian)"
 			 packages="forwardMode;analysisMode"
 		/>
+                <var name="cell_mask_interp" type="real" dimensions="nCells Time" units="m s^{-1}"
+                         description="testing"
+                         packages="forwardMode"
+                />
 		<var name="velocityZonal" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
 			 description="component of horizontal velocity in the eastward direction"
 			 packages="forwardMode;analysisMode"
@@ -2941,6 +2961,13 @@
                 <var name="velocityMeridional_obs" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
                          description="observed y-component of horizontal velocity"
                 />
+                <var name="velocityZonal_interp" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                         description="gridded x-component of horizontal velocity at last time step interpolated back to MPAS grid"
+                />
+                <var name="velocityMeridional_interp" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                         description="gridded y-component of horizontal velocity at last time step interpolated back to MPAS grid"
+                />
+
 		<!-- *********************************************************************
 
 				The fields listed below are constituent fields for coupling.

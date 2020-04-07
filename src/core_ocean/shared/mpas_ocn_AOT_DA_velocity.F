@@ -157,21 +157,37 @@ contains
 !         enddo
 !      enddo
  
+               !write(135790,*), 'tendency', maxval(tend)
          !$omp do schedule(runtime) private(k)
          do iEdge = 1, nEdges
           cell1 = cellsOnEdge(1, iEdge)
           cell2 = cellsOnEdge(2, iEdge)
           do k = 1, maxLevelEdgeTop(iEdge)
+          !write(1230,*) tend(k,iEdge)
+               !tend(k,iEdge) = tend(k,iEdge) - velocityTend_mu *(  (cos(angleEdge(iEdge)) * (0.5*(velocityX_interp(k,cell1) + velocityX_interp(k,cell2))) + &
+               !                   sin(angleEdge(iEdge)) * (0.5*(velocityY_interp(k,cell1) + velocityY_interp(k,cell2)))  ) - & 
+               !               (  cos(angleEdge(iEdge)) * (0.5*(velocityX_interp_obs(k,cell1) + velocityX_interp_obs(k,cell2))) + &
+               !                   sin(angleEdge(iEdge)) * (0.5*(velocityY_interp_obs(k,cell1) + velocityY_interp_obs(k,cell2)))  )   )
                tend(k,iEdge) = tend(k,iEdge) + velocityTend_mu * & 
                               (  cos(angleEdge(iEdge)) * (0.5*(velocityX_interp_obs(k,cell1) - velocityX_interp(k,cell1) + velocityX_interp_obs(k,cell2) - velocityX_interp(k,cell2))) + &
                                   sin(angleEdge(iEdge)) * (0.5*(velocityY_interp_obs(k,cell1) - velocityY_interp(k,cell1) + velocityY_interp_obs(k,cell2) - velocityY_interp(k,cell2)))     )
-!               print *, 'normal vel', normalVelocity(k,iEdge)
-!               print *, 'normal vel obs', (cos(angleEdge(iEdge)) * &
+!               write(1231,*), 'normal vel', (cos(angleEdge(iEdge)) * &
+!(0.5*(velocityX_interp(k,cell1) + velocityX_interp(k,cell2))) + &
+!                                  sin(angleEdge(iEdge)) * &
+!(0.5*(velocityY_interp(k,cell1) + velocityY_interp(k,cell2))) )
+!               write(1232,*), 'normal vel obs', (cos(angleEdge(iEdge)) * &
 !(0.5*(velocityX_interp_obs(k,cell1) + velocityX_interp_obs(k,cell2))) + &
 !                                  sin(angleEdge(iEdge)) * &
 !(0.5*(velocityY_interp_obs(k,cell1) + velocityY_interp_obs(k,cell2))) )
+               !  write(135791,*) 'observed min,max, ', minval(cos(angleEdge(iEdge)) * (0.5*(velocityX_interp(k,cell1) + velocityX_interp(k,cell2))) + sin(angleEdge(iEdge)) * (0.5*(velocityY_interp(k,cell1) + velocityY_interp(k,cell2))) ), maxval(cos(angleEdge(iEdge)) * (0.5*(velocityX_interp(k,cell1) + velocityX_interp(k,cell2))) + sin(angleEdge(iEdge)) * (0.5*(velocityY_interp(k,cell1) + velocityY_interp(k,cell2))) )
+               ! write(135792,*) 'interp min, max, ', minval(cos(angleEdge(iEdge)) * (0.5*(velocityX_interp_obs(k,cell1) + velocityX_interp_obs(k,cell2))) + sin(angleEdge(iEdge)) * (0.5*(velocityY_interp_obs(k,cell1) + velocityY_interp_obs(k,cell2))) ), maxval(cos(angleEdge(iEdge)) * (0.5*(velocityX_interp_obs(k,cell1) + velocityX_interp_obs(k,cell2))) + sin(angleEdge(iEdge)) * (0.5*(velocityY_interp_obs(k,cell1) + velocityY_interp_obs(k,cell2))) )
            enddo
          enddo
+                !write(135791,*), 'observed min, max, X', minval(velocityX_interp_obs), maxval(velocityX_interp_obs)
+                !write(135792,*), 'observed min, max, Y', minval(velocityY_interp_obs), maxval(velocityY_interp_obs)
+                !write(135793,*), 'interp min, max, X', minval(velocityX_interp), maxval(velocityX_interp)
+                !write(135794,*), 'interp min, max, Y', minval(velocityY_interp), maxval(velocityY_interp)
+                !write(135795,*), 'tendency new', maxval(tend)
          !$omp end do
 
       call mpas_timer_stop('AOT DA horizontal velocity')

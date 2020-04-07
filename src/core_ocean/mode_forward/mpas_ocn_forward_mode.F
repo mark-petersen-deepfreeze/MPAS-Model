@@ -81,10 +81,13 @@ module ocn_forward_mode
 
    use ocn_constants
 
+   use mpas_ocn_call_python
+
    implicit none
    private
 
    public :: ocn_forward_mode_init, ocn_forward_mode_run, ocn_forward_mode_finalize
+   !public :: call_python
    public :: ocn_forward_mode_setup_clock
 
    contains
@@ -105,6 +108,7 @@ module ocn_forward_mode
    function ocn_forward_mode_init(domain, startTimeStamp) result(ierr)!{{{
 
       type (domain_type), intent(inout) :: domain
+      !type (mpas_io_context_type), intent(inout), target :: iocontext
       character(len=*), intent(out) :: startTimeStamp
       integer :: ierr
 
@@ -190,7 +194,7 @@ module ocn_forward_mode
       call mpas_timer_stop('reset_io_alarms')
 
       ! Initialize submodules before initializing blocks.
-      call ocn_timestep_init(ierr)
+      call ocn_timestep_init(domain % iocontext, ierr)
 
       call ocn_thick_hadv_init(err_tmp)
       ierr = ior(ierr, err_tmp)
@@ -463,8 +467,11 @@ module ocn_forward_mode
 !-----------------------------------------------------------------------
 
    function ocn_forward_mode_run(domain) result(ierr)!{{{
-
+      use mpi
+      !use, intrinsic :: iso_c_binding
       type (domain_type), intent(inout) :: domain
+
+      integer :: mpierror, proc_rank, nb_procs
 
       integer :: itimestep, err
       real (kind=RKIND) :: dt
@@ -473,6 +480,42 @@ module ocn_forward_mode
       type (MPAS_Time_Type) :: currTime
       character(len=StrKIND) :: timeStamp
       integer :: ierr, err_tmp
+    
+      character*362 remap_command0 / 'ncks -O -d Time,-1,-1 /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/forward_AOT/ocean/soma/32km/default/forward/output/output_obs.nc /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/forward_AOT/ocean/soma/32km/default/forward/output/output_obs_slice.nc' /
+      character*258 remap_command1 / 'ncatted -O -t -a _FillValue,salinity,o,d,-1e+34 /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/forward_AOT/ocean/soma/32km/default/forward/output/output_obs_slice.nc /tmp/ncremap_tmp_att.nc.pid11441_sal' / 
+      character*126 remap_command2 / 'ncatted -O -t -a _FillValue,temperature,o,d,-1e+34 /tmp/ncremap_tmp_att.nc.pid11441_sal /tmp/ncremap_tmp_att.nc.pid11441_temp' /
+      character*127 remap_command3 /'ncatted -A -O -t -a _FillValue,velocityZonal,o,d,0 /tmp/ncremap_tmp_att.nc.pid11441_temp /tmp/ncremap_tmp_att.nc.pid11441_velz' /
+      character*127 remap_command4 / 'ncatted -A -O -t -a _FillValue,velocityMeridional,o,d,0 /tmp/ncremap_tmp_att.nc.pid11441_velz /tmp/ncremap_tmp_att.nc.pid11441' /
+      character*198 remap_command5 / 'ncpdq -O --no_tmp_fl --gaa remap_script=ncremap --hdr_pad=1000 -a Time,nVertLevels,maxEdges,MaxEdges2,nCategories,ONE,nEdges,nCells /tmp/ncremap_tmp_att.nc.pid11441 /tmp/ncremap_tmp_pdq.nc.pid11441' /
+      character*372 remap_command6 / 'ncks -t 2 -O --no_tmp_fl --gaa remap_script=ncremap --hdr_pad=1000 --rgr lat_nm_out=lat --rgr lon_nm_out=lon --rnr=0.0 --map=map_SOMA_32_to_0.5x0.5degree.nc /tmp/ncremap_tmp_pdq.nc.pid11441 /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/forward_AOT/ocean/soma/32km/default/forward/output/interp_data_0.5x0.5degree.nc' /
+     character*37 delete_tmp_files / 'rm /tmp/ncremap_tmp_att.nc.pid11441*' /
+
+!      character*400 remap_command0 / 'ncks -O -d Time,-1,-1 /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/isopycnal_10layer_AOT_main_run/ocean/soma/32km/10layer/forward/output/output_obs.nc /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/isopycnal_10layer_AOT_main_run/ocean/soma/32km/10layer/forward/output/output_obs_slice.nc' /
+!      character*277 remap_command1 / 'ncatted -O -t -a _FillValue,salinity,o,d,-1e+34 /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/isopycnal_10layer_AOT_main_run/ocean/soma/32km/10layer/forward/output/output_obs_slice.nc /tmp/ncremap_tmp_att.nc.pid11441_sal' / 
+!      character*126 remap_command2 / 'ncatted -O -t -a _FillValue,temperature,o,d,-1e+34 /tmp/ncremap_tmp_att.nc.pid11441_sal /tmp/ncremap_tmp_att.nc.pid11441_temp' /
+!      character*127 remap_command3 /'ncatted -A -O -t -a _FillValue,velocityZonal,o,d,0 /tmp/ncremap_tmp_att.nc.pid11441_temp /tmp/ncremap_tmp_att.nc.pid11441_velz' /
+!      character*127 remap_command4 / 'ncatted -A -O -t -a _FillValue,velocityMeridional,o,d,0 /tmp/ncremap_tmp_att.nc.pid11441_velz /tmp/ncremap_tmp_att.nc.pid11441' /
+!      character*198 remap_command5 / 'ncpdq -O --no_tmp_fl --gaa remap_script=ncremap --hdr_pad=1000 -a Time,nVertLevels,maxEdges,MaxEdges2,nCategories,ONE,nEdges,nCells /tmp/ncremap_tmp_att.nc.pid11441 /tmp/ncremap_tmp_pdq.nc.pid11441' /
+!      character*391 remap_command6 / 'ncks -t 2 -O --no_tmp_fl --gaa remap_script=ncremap --hdr_pad=1000 --rgr lat_nm_out=lat --rgr lon_nm_out=lon --rnr=0.0 --map=map_SOMA_32_to_0.5x0.5degree.nc /tmp/ncremap_tmp_pdq.nc.pid11441 /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/isopycnal_10layer_AOT_main_run/ocean/soma/32km/10layer/forward/output/interp_data_0.5x0.5degree.nc' /
+!     character*37 delete_tmp_files / 'rm /tmp/ncremap_tmp_att.nc.pid11441*' /
+
+!      character*402 remap_command0 / 'ncks -O -d Time,-1,-1 /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/isopycnal_10layer_AOT_intel_new/ocean/soma/32km/10layer/forward/output/output_obs.nc /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/isopycnal_10layer_AOT_intel_new/ocean/soma/32km/10layer/forward/output/output_obs_slice.nc' /
+!      character*278 remap_command1 / 'ncatted -O -t -a _FillValue,salinity,o,d,-1e+34 /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/isopycnal_10layer_AOT_intel_new/ocean/soma/32km/10layer/forward/output/output_obs_slice.nc /tmp/ncremap_tmp_att.nc.pid11441_sal' / 
+!      character*126 remap_command2 / 'ncatted -O -t -a _FillValue,temperature,o,d,-1e+34 /tmp/ncremap_tmp_att.nc.pid11441_sal /tmp/ncremap_tmp_att.nc.pid11441_temp' /
+!      character*127 remap_command3 /'ncatted -A -O -t -a _FillValue,velocityZonal,o,d,0 /tmp/ncremap_tmp_att.nc.pid11441_temp /tmp/ncremap_tmp_att.nc.pid11441_velz' /
+!      character*127 remap_command4 / 'ncatted -A -O -t -a _FillValue,velocityMeridional,o,d,0 /tmp/ncremap_tmp_att.nc.pid11441_velz /tmp/ncremap_tmp_att.nc.pid11441' /
+!      character*198 remap_command5 / 'ncpdq -O --no_tmp_fl --gaa remap_script=ncremap --hdr_pad=1000 -a Time,nVertLevels,maxEdges,MaxEdges2,nCategories,ONE,nEdges,nCells /tmp/ncremap_tmp_att.nc.pid11441 /tmp/ncremap_tmp_pdq.nc.pid11441' /
+!      character*392 remap_command6 / 'ncks -t 2 -O --no_tmp_fl --gaa remap_script=ncremap --hdr_pad=1000 --rgr lat_nm_out=lat --rgr lon_nm_out=lon --rnr=0.0 --map=map_SOMA_32_to_0.5x0.5degree.nc /tmp/ncremap_tmp_pdq.nc.pid11441 /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/isopycnal_10layer_AOT_intel_new/ocean/soma/32km/10layer/forward/output/interp_data_0.5x0.5degree.nc' /
+!     character*37 delete_tmp_files / 'rm /tmp/ncremap_tmp_att.nc.pid11441*' /
+
+!     character*271 remap_cellmask_command1 / 'ncatted -O -t -a _FillValue,salinity,o,d,-1e+34 /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/isopycnal_3layer_compil+interp/ocean/soma/32km/3layer/forward/output/cell_mask.nc /tmp/ncremap_tmp_cell_mask.nc.pid11441' /
+     character*235 remap_cellmask_command1 /'cp /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/isopycnal_10layer_AOT_intel_new/ocean/soma/32km/10layer/forward/output/cell_mask_interp.nc /tmp/ncremap_tmp_cell_mask.nc.pid11441' /
+     character*214 remap_cellmask_command2 / 'ncpdq -O --no_tmp_fl --gaa remap_script=ncremap --hdr_pad=1000 -a Time,nVertLevels,maxEdges,MaxEdges2,nCategories,ONE,nEdges,nCells /tmp/ncremap_tmp_cell_mask.nc.pid11441 /tmp/ncremap_tmp_cell_mask_pdq.nc.pid11441' /
+     character*408 remap_cellmask_command3 / 'ncks -t 2 -O --no_tmp_fl --gaa remap_script=ncremap --hdr_pad=1000 --rgr lat_nm_out=lat --rgr lon_nm_out=lon --rnr=0.0 --map=map_SOMA_32_to_0.5x0.5degree.nc /tmp/ncremap_tmp_cell_mask_pdq.nc.pid11441 /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/isopycnal_10layer_AOT_intel_new/ocean/soma/32km/10layer/forward/output/cell_mask_reinterp_0.5x0.5degree.nc' /
+     character*31 remap_cellmask_command4 / 'rm /tmp/ncremap_tmp_cell_mask*' /
+! --rnr=0.0 
+
+      integer :: status, system
 
       type (mpas_pool_type), pointer :: averagePool
       type (mpas_pool_type), pointer :: meshPool
@@ -491,9 +534,11 @@ module ocn_forward_mode
       logical, pointer :: config_use_surface_salinity_monthly_restoring
       logical, pointer :: config_use_time_varying_atmospheric_forcing
       logical, pointer :: config_use_time_varying_land_ice_forcing
+      logical, pointer :: config_AOT_DA_on
 
       ierr = 0
 
+      call mpas_pool_get_config(ocnConfigs, 'config_AOT_DA_on', config_AOT_DA_on)
       call mpas_pool_get_config(domain % configs, 'config_write_output_on_startup', config_write_output_on_startup)
       call mpas_pool_get_config(domain % configs, 'config_restart_timestamp_name', config_restart_timestamp_name)
       call mpas_pool_get_config(domain % configs, 'config_sw_absorption_type', config_sw_absorption_type)
@@ -565,7 +610,6 @@ module ocn_forward_mode
             call mpas_stream_mgr_reset_alarms(domain % streamManager, streamID='block_.*', ierr=ierr)
          end if
          call mpas_timer_stop('reset_io_alarms')
-
          itimestep = itimestep + 1
          call mpas_advance_clock(domain % clock)
 
@@ -603,8 +647,8 @@ module ocn_forward_mode
 #endif
          !$omp parallel default(firstprivate) shared(domain, dt, timeStamp)
 
-         call ocn_timestep(domain, dt, timeStamp)
-
+         call ocn_timestep(domain, itimestep, dt, timeStamp)
+         
          !$omp end parallel
 
          call mpas_timer_stop("time integration")
@@ -699,9 +743,52 @@ module ocn_forward_mode
          ! Validate that the state is OK to run with for the next timestep.
          call ocn_validate_state(domain, timeLevel=1)
 
+         if (config_AOT_DA_on) then ! .and. itimestep .ge. 2) then  ! this commented part needed for no restart only
+           !need to force this to only be done on processor 0; shouldn't need to
+           !be communicated, since the other processors simply read the output
+           !file
+            call MPI_Comm_size(MPI_COMM_WORLD, nb_procs, mpierror)
+            call MPI_Comm_rank(MPI_COMM_WORLD, proc_rank, mpierror)
+            !write(0987654321,*), 'my processor number is ', proc_rank, ' of ', nb_procs
+            !call mpas_pool_get_confgi(ocnConfigs, 'remap_command1', remap_command1)  
+            !call mpas_pool_get_config(ocnConfigs, 'remap_command2', remap_command2)  
+            !call mpas_pool_get_config(ocnConfigs, 'remap_command3', remap_command3)  
+            !call mpas_pool_get_config(ocnConfigs, 'remap_command4', remap_command4)  
+            !call mpas_pool_get_config(ocnConfigs, 'remap_command5', remap_command5)  
+            !call mpas_pool_get_config(ocnConfigs, 'remap_command6', remap_command6)  
+            if (proc_rank .eq. 0) then
+               status = system (remap_command0)
+               status = system (remap_command1)
+               status = system (remap_command2)
+               status = system (remap_command3)
+               status = system (remap_command4)
+               status = system (remap_command5)
+               status = system (remap_command6)
+               status = system (delete_tmp_files)
+   
+               !write(5000,*) 'I am executing the remapping commands...'
+
+               !status = system (remap_cellmask_command1)
+               !status = system (remap_cellmask_command2)
+               !status = system (remap_cellmask_command3)
+               !status = system (remap_cellmask_command4)
+            endif
+         endif
+   
       end do
 
    end function ocn_forward_mode_run!}}}
+
+!   subroutine call_python()
+!
+!     use, intrinsic :: iso_c_binding
+!     implicit none
+!     interface
+!        subroutine remap() bind (c)
+!        end subroutine remap
+!     end interface
+!     write(1111,*) 'I read this routine'
+!   end subroutine call_python
 
 !***********************************************************************
 !

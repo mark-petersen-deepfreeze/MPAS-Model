@@ -79,7 +79,7 @@ module ocn_time_integration_split
 !
 !-----------------------------------------------------------------------
 
-    subroutine ocn_time_integrator_split(domain, dt)!{{{
+    subroutine ocn_time_integrator_split(domain, itimestep, dt)!{{{
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Advance model state forward in time by the specified time step using
     !   Split_Explicit timestepping scheme
@@ -94,6 +94,7 @@ module ocn_time_integration_split
 
       type (domain_type), intent(inout) :: domain
       real (kind=RKIND), intent(in) :: dt
+      integer, intent(in), optional :: itimestep
 
       type (mpas_pool_type), pointer :: statePool
       type (mpas_pool_type), pointer :: tracersPool
@@ -502,7 +503,7 @@ module ocn_time_integration_split
 
            call mpas_pool_get_array(diagnosticsPool, 'layerThicknessEdge', layerThicknessEdge)
 
-           call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, stage1_tend_time, dt)
+           call ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, stage1_tend_time, dt, itimestep)
 
            block => block % next
          end do
@@ -901,7 +902,6 @@ module ocn_time_integration_split
                    ! method 2: may be better than method 1.
                    ! Take average  of full thickness at two neighboring cells.
                    !thicknessSum = sshEdge + 0.5 *( bottomDepth(cell1) + bottomDepth(cell2) )
-
 
                     flux = ((1.0-config_btr_gam1_velWt1) * normalBarotropicVelocitySubcycleCur(iEdge) &
                            + config_btr_gam1_velWt1 * normalBarotropicVelocitySubcycleNew(iEdge)) &
@@ -1445,7 +1445,7 @@ module ocn_time_integration_split
             call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
             call mpas_pool_get_subpool(block % structs, 'shortwave', swForcingPool)
             call ocn_tend_tracer(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, swForcingPool, scratchPool, &
-                    dt, activeTracersOnly, 2)
+                    dt, itimestep, activeTracersOnly, 2)
 
             block => block % next
          end do
@@ -1915,7 +1915,7 @@ module ocn_time_integration_split
          call mpas_dmpar_exch_halo_field(effectiveDensityField)
          call mpas_timer_stop("se effective density halo")
       end if
-
+       
       call mpas_timer_stop('se fini')
       call mpas_timer_stop("se timestep")
 

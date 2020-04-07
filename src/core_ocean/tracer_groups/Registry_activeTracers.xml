@@ -153,6 +153,16 @@
                                 />
                         </var_array>
                 </var_struct>
+                <var_struct name="tracersAOTInterpData" time_levs="1">
+                        <var_array name="activeTracersAOTInterpolatedData" type="real" dimensions="nVertLevels nCells Time">
+                                <var name="temperatureAOTInterpolatedData" array_group="activeGRP" units="{s}^-1"
+                         description="Gridded temperature data from last time step interpolated back to MPAS grid for AOT data assimilation algorithm"
+                                />
+                                <var name="salinityAOTInterpolatedData" array_group="activeGRP" units="{s}^-1"
+                         description="Gridded salinity data from last time step interpolated back to MPAS grid for AOT data assimilation algorithm"
+                                />
+                        </var_array>
+                </var_struct>
 		<var_struct name="tracersInteriorRestoringFields" time_levs="1">
 			<var_array name="activeTracersInteriorRestoringRate" type="real" dimensions="nVertLevels nCells Time" packages="activeTracersInteriorRestoringPKG">
 				<var name="temperatureInteriorRestoringRate" array_group="activeGRP" units="{s}^-1"

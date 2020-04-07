@@ -385,7 +385,7 @@ contains
 
        character (len=StrKIND), pointer :: config_isomip_plus_topography_file
 
-       integer :: iY, iX
+       integer :: iY, iX ! not used anywhere
 
        iErr = 0
 

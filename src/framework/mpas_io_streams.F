@@ -97,7 +97,6 @@ module mpas_io_streams
 
       if (present(ierr)) ierr = MPAS_STREAM_NOERR
 
-
       stream % fileHandle = MPAS_io_open(fileName, ioDirection, ioFormat, ioContext, clobber_file=clobberFiles, truncate_file=truncateFiles, &
                                          ierr=io_err) 
       !
@@ -1187,6 +1186,8 @@ module mpas_io_streams
          end do
       else
          nullify(isAvailable)
+         !globalDimSize = field % dimSizes(1) * field % dimSizes(2) * field % dimSizes(3)
+         !totalDimSize = globalDimSize
          call MPAS_streamAddField_generic(stream, trim(field % fieldName), REAL_IO_TYPE , field % dimNames, field % dimSizes, &
                                           field % hasTimeDimension, field % isDecomposed, totalDimSize, globalDimSize, indices, precision=local_precision, ierr=io_err)
          if (io_err == MPAS_STREAM_NOERR) then

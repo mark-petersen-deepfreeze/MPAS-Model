@@ -480,15 +480,14 @@ contains
       real (kind=RKIND), dimension(:,:,:), intent(in) :: inField
       real (kind=RKIND), dimension(outN), intent(in) :: outX, outY
       real (kind=RKIND), dimension(:,:), intent(out) :: outField
-      real (kind=RKIND), dimension(:,:,:), intent(in), optional :: inMask
+      real (kind=RKIND), dimension(:,:), intent(in), optional :: inMask
       real (kind=RKIND), intent(in), optional :: inXPeriod, inYPeriod
       logical, intent(in), optional :: extrapX, extrapY
       !logical :: three_a_bool, three_b_bool, three_c_bool, three_d_bool
       !logical :: two_a_bool, two_b_bool, two_c_bool, two_d_bool
-      real (kind=RKIND), dimension(68,54,100) :: inField_new
 
       ! Define variable pointers
-      integer :: outIndex, xInd1, xInd2, yInd1, yInd2, k, xSearch, ySearch, searchIdx_x, searchIdx_y, iVertLevels
+      integer :: outIndex, xInd1, xInd2, yInd1, yInd2, k, xSearch, ySearch, searchIdx_x, searchIdx_y
       real (kind=RKIND) :: x, y, xFrac, yFrac, dist, minDist!X, minDistY!, u1, v1, u2, v2, u3, v3, u4, v4
 
       do outIndex = 1, outN
@@ -549,15 +548,14 @@ contains
          ! call_mask 
 
           if (present(inMask)) then 
-              do iVertLevels = 1,size(inMask,3)-1
-              if (inMask(xInd1,yInd1,iVertLevels) .eq. 0 .and. inMask(xInd2,yInd1,iVertLevels) .eq. 0 .and. inMask(xInd1,yInd2,iVertLevels) .eq. 0 .and. inMask(xInd2,yInd2,iVertLevels) .eq. 0) then
+              if (inMask(xInd1,yInd1) .eq. 0 .and. inMask(xInd2,yInd1) .eq. 0 .and. inMask(xInd1,yInd2) .eq. 0 .and. inMask(xInd2,yInd2) .eq. 0) then
                   minDist = 1e34
                   !minDistY = 1e34
                   do searchIdx_x = 1,inNx
                      do searchIdx_y = 1, inNy
                              dist = (x-inX(searchIdx_x))**2 + (y-inY(searchIdx_y))**2
                              !distY = abs(y-inY(searchIdx_y))
-                         if (inMask(searchIdx_x, searchIdx_y,iVertLevels) .ne. 0 .and. dist < minDist) then
+                         if (inMask(searchIdx_x, searchIdx_y) .ne. 0 .and. dist < minDist) then
                              minDist = dist
                              xSearch = searchIdx_x
                          !endif
@@ -567,40 +565,27 @@ contains
                          endif
                      enddo
                   enddo
-                  !if (xSearch .eq. 0 .and. ySearch .eq. 0)  then
-                  !  xSearch = xInd1
-                  !  ySearch = yInd1
-                  !else if (xSearch .ge. size(inMask,1) .and. ySearch .eq. 0) then
-                  !   xSearch = xInd1
-                  !   ySearch = yInd1
-                  !else if (xSearch .eq. 0 .and. ySearch .ge. size(inMask,2)) then
-                  !   xSearch = xInd1
-                  !   ySearch = yInd1
-                  !else if (xSearch .ge. size(inMask,1) .and. ySearch .ge. size(inMask,2)) then
-                  !   xSearch = xInd1
-                  !   ySearch = yInd1
-                  !endif
-                  !write(8081,*) xSearch, ySearch, xInd1, yInd1, iVertLevels
-                  outField(iVertLevels,outIndex) = inField(xSearch,ySearch,iVertLevels)
+                  outField(:,outIndex) = inField(xSearch,ySearch,:)
               else
 !               write(9090,*), (1-xFrac)*(1-yFrac)*inMask(xInd1,yInd1)*inField(xInd1,yInd1,:)
-              !if (((1.0_RKIND-xFrac)*(1.0_RKIND-yFrac)*inMask(xInd1,yInd1,iVertLevels) + & 
-                                        !xFrac*(1.0_RKIND-yFrac)*inMask(xInd2,yInd1,iVertLevels) + & 
-                                        !(1.0_RKIND-xFrac)*yFrac*inMask(xInd1,yInd2,iVertLevels) + &
-                                        !xFrac*yFrac*inMask(xInd2,yInd2,iVertLevels)) <1.e-04) then
-                    !write(8080,*) 180./(4*ATAN(1.d0))*inX(xInd1), 180./(4*ATAN(1.d0))*inX(xInd2), 180./(4*ATAN(1.d0))*inY(yInd1), 180./(4*ATAN(1.d0))*inY(yInd2), xFrac, yFrac, inMask(xInd1,yInd1,iVertLevels), inMask(xInd2,yInd1,iVertLevels), inMask(xInd1,yInd2,iVertLevels), inMask(xInd2,yInd2,iVertLevels)
-                    !write(7070,*) ((1.0_RKIND-xFrac)*(1.0_RKIND-yFrac)*inMask(xInd1,yInd1,iVertLevels) + xFrac*(1.0_RKIND-yFrac)*inMask(xInd2,yInd1,iVertLevels) + (1.0_RKIND-xFrac)*yFrac*inMask(xInd1,yInd2,iVertLevels) + xFrac*yFrac*inMask(xInd2,yInd2,iVertLevels)), 180./(4*ATAN(1.d0))*x, 180./(4*ATAN(1.d0))*y
+              if (((1.0_RKIND-xFrac)*(1.0_RKIND-yFrac)*inMask(xInd1,yInd1) + & 
+                                        xFrac*(1.0_RKIND-yFrac)*inMask(xInd2,yInd1) + & 
+                                        (1.0_RKIND-xFrac)*yFrac*inMask(xInd1,yInd2) + &
+                                        xFrac*yFrac*inMask(xInd2,yInd2)) <1.e-01) then
+                    write(8080,*) 180./(4*ATAN(1.d0))*inX(xInd1), 180./(4*ATAN(1.d0))*inX(xInd2), 180./(4*ATAN(1.d0))*inY(yInd1), 180./(4*ATAN(1.d0))*inY(yInd2), xFrac, yFrac, inMask(xInd1,yInd1), inMask(xInd2,yInd1), inMask(xInd1,yInd2), inMask(xInd2,yInd2)
+                    write(7070,*) ((1.0_RKIND-xFrac)*(1.0_RKIND-yFrac)*inMask(xInd1,yInd1) + xFrac*(1.0_RKIND-yFrac)*inMask(xInd2,yInd1) + (1.0_RKIND-xFrac)*yFrac*inMask(xInd1,yInd2) + xFrac*yFrac*inMask(xInd2,yInd2))
                     !write(9090,*), 1/((1.0_RKIND-xFrac)*(1.0_RKIND-yFrac)*inMask(xInd1,yInd1) + xFrac*(1.0_RKIND-yFrac)*inMask(xInd2,yInd1) + (1.0_RKIND-xFrac)*yFrac*inMask(xInd1,yInd2) + xFrac*yFrac*inMask(xInd2,yInd2))
-              !end if
+              end if
  
-              outField(iVertLevels,outIndex) = 1/((1.0_RKIND-xFrac)*(1.0_RKIND-yFrac)*inMask(xInd1,yInd1,iVertLevels) + & 
-                                        xFrac*(1.0_RKIND-yFrac)*inMask(xInd2,yInd1,iVertLevels) + & 
-                                        (1.0_RKIND-xFrac)*yFrac*inMask(xInd1,yInd2,iVertLevels) + &
-                                        xFrac*yFrac*inMask(xInd2,yInd2,iVertLevels) )* &
-                                           ( (1.0_RKIND-xFrac)*(1.0_RKIND-yFrac)*inMask(xInd1,yInd1,iVertLevels)*inField(xInd1,yInd1,iVertLevels) &
-                                           + xFrac*(1.0_RKIND-yFrac)*inMask(xInd2,yInd1,iVertLevels)*inField(xInd2,yInd1,iVertLevels) &
-                                           + (1.0_RKIND-xFrac)*yFrac*inMask(xInd1,yInd2,iVertLevels)*inField(xInd1,yInd2,iVertLevels) &
-                                           + xFrac*yFrac*inMask(xInd2,yInd2,iVertLevels)*inField(xInd2,yInd2,iVertLevels) )
+               outField(:,outIndex) = 1.0
+              !outField(:,outIndex) = 1/((1.0_RKIND-xFrac)*(1.0_RKIND-yFrac)*inMask(xInd1,yInd1) + & 
+              !                          xFrac*(1.0_RKIND-yFrac)*inMask(xInd2,yInd1) + & 
+              !                          (1.0_RKIND-xFrac)*yFrac*inMask(xInd1,yInd2) + &
+              !                          xFrac*yFrac*inMask(xInd2,yInd2)) * &
+              !                             ( (1.0_RKIND-xFrac)*(1.0_RKIND-yFrac)*inMask(xInd1,yInd1)*inField(xInd1,yInd1,:) &
+              !                             + xFrac*(1.0_RKIND-yFrac)*inMask(xInd2,yInd1)*inField(xInd2,yInd1,:) &
+              !                             + (1.0_RKIND-xFrac)*yFrac*inMask(xInd1,yInd2)*inField(xInd1,yInd2,:) &
+              !                             + xFrac*yFrac*inMask(xInd2,yInd2)*inField(xInd2,yInd2,:) )
 
                           !if (abs(outField(1,outIndex)) .ge. 1e2) then
                                !write(4002,*), outField(1,outIndex), x, y, inField(xInd1,yInd1,1), inField(xInd2,yInd1,1), inField(xInd1,yInd2,1), inField(xInd2,yInd2,1), inMask(xInd1,yInd1), inMask(xInd2,yInd1),  inMask(xInd1,yInd2), inMask(xInd2,yInd2)
@@ -635,25 +620,6 @@ contains
                   !                        ((1-inMask(xInd1,yInd1))*(1-inMask(xInd2,yInd1))*(1-inMask(xInd1,yInd2))*inMask(xInd2,yInd2))* &
                   !                                          inField(xInd2,yInd2,:)
           endif
-          enddo
-           outField(100,outIndex) = inField(xInd1,yInd1,100)
-           do iVertLevels = 1,100
-              inField_new(xInd1,yInd1,iVertLevels) = inField(xInd1,yInd1,iVertLevels) * inMask(xInd1,yInd1,iVertLevels)
-              inField_new(xInd1,yInd2,iVertLevels) = inField(xInd1,yInd2,iVertLevels) * inMask(xInd1,yInd2,iVertLevels)
-              inField_new(xInd2,yInd1,iVertLevels) = inField(xInd2,yInd1,iVertLevels) * inMask(xInd2,yInd1,iVertLevels)
-              inField_new(xInd2,yInd2,iVertLevels) = inField(xInd2,yInd2,iVertLevels) * inMask(xInd2,yInd2,iVertLevels)
-           enddo
-         !write(44432,*), inX(25)*180./(4*ATAN(1.d0)), inY(25)*180./(4*ATAN(1.d0)), inField_new(25,25,80) 
-         !write(44433,*), maxval(inField_new(:,:,1:10)), minval(inField_new(:,:,1:10))
-         !write(44434,*), maxval(inField_new(:,:,11:20)), minval(inField_new(:,:,11:20))
-         !write(44435,*), maxval(inField_new(:,:,21:30)), minval(inField_new(:,:,21:30))
-         !write(44436,*), maxval(inField_new(:,:,31:40)), minval(inField_new(:,:,31:40))
-         !write(44437,*), maxval(inField_new(:,:,41:50)), minval(inField_new(:,:,41:50))
-         !write(44438,*), maxval(inField_new(:,:,51:60)), minval(inField_new(:,:,51:60))
-         !write(44439,*), maxval(inField_new(:,:,61:70)), minval(inField_new(:,:,61:70))
-         !write(44440,*), maxval(inField_new(:,:,71:80)), minval(inField_new(:,:,71:80))
-         !write(44441,*), maxval(inField_new(:,:,81:90)), minval(inField_new(:,:,81:90))
-         !write(44442,*), maxval(inField_new(:,:,91:100)), minval(inField_new(:,:,91:100))
          else 
               outField(:,outIndex) =  &
                  (1.0_RKIND-xFrac)*(1.0_RKIND-yFrac)*inField(xInd1,yInd1,:) &
@@ -661,6 +627,7 @@ contains
                  + (1.0_RKIND-xFrac)*yFrac*inField(xInd1,yInd2,:) &
                  + xFrac*yFrac*inField(xInd2,yInd2,:)
         endif
+         !write(44432,*), xfrac, '  ', yfrac, '  ', x, '  ', y 
       end do
 
    !--------------------------------------------------------------------

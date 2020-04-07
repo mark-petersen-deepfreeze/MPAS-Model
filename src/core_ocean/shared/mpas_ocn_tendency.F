@@ -20,6 +20,11 @@
 
 module ocn_tendency
 
+   use mpas_kind_types
+   use mpas_io_units
+   use mpas_io
+   use mpas_io_streams
+   use mpas_dmpar
    use mpas_derived_types
    use mpas_pool_routines
    use mpas_constants
@@ -209,22 +214,25 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, timeLevelIn, dt)!{{{
+   subroutine ocn_tend_vel(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, scratchPool, timeLevelIn, dt, itimestep)!, domain, iErr)!{{{
       implicit none
 
       type (mpas_pool_type), intent(inout) :: tendPool !< Input/Output: Tendency structure
-      type (mpas_pool_type), intent(in) :: statePool !< Input: State information
-      type (mpas_pool_type), intent(in) :: forcingPool !< Input: Forcing information
-      type (mpas_pool_type), intent(in) :: diagnosticsPool !< Input: Diagnostic information
-      type (mpas_pool_type), intent(in) :: meshPool !< Input: Mesh information
+      type (mpas_pool_type), pointer,  intent(in) :: statePool !< Input: State information
+      type (mpas_pool_type), pointer, intent(in) :: forcingPool !< Input: Forcing information
+      type (mpas_pool_type), pointer, intent(in) :: diagnosticsPool !< Input: Diagnostic information
+      type (mpas_pool_type), pointer, intent(in) :: meshPool !< Input: Mesh information
       real (kind=RKIND), intent(in) :: dt
+      integer, intent(in) :: itimestep
       type (mpas_pool_type), intent(inout) :: scratchPool !< Input: Scratch structure
       integer, intent(in), optional :: timeLevelIn !< Input: Time level for state fields
 
       type (mpas_pool_type), pointer :: tracersPool
-!      type (MPAS_Stream_type) :: inputObsStream, outputInterpStream
 
-      real (kind=RKIND), dimension(:), pointer :: surfaceStress, surfaceStressMagnitude, surfaceFluxAttenuationCoefficient
+      !type (domain_type), intent(inout) :: domain
+      !type (block_type), pointer :: block_ptr
+
+      real (kind=RKIND), dimension(:), pointer :: surfaceStress, surfaceStressMagnitude, surfaceFluxAttenuationCoefficient,latCell, lonCell 
       real (kind=RKIND), dimension(:,:), pointer :: &
         layerThicknessEdge, normalVelocity, tangentialVelocity, density, potentialDensity, zMid, pressure, &
         layerThickness, &
@@ -232,22 +240,24 @@ contains
         normalizedRelativeVorticityEdge, normalizedPlanetaryVorticityEdge, &
         montgomeryPotential, vertAleTransportTop, divergence, vertViscTopOfEdge, &
         inSituThermalExpansionCoeff, inSituSalineContractionCoeff, &
-       velocityZonal_obs, velocityMeridional_obs
+       velocityZonal_obs, velocityMeridional_obs, &
+       velocityZonal_interp, velocityMeridional_interp
       real (kind=RKIND), dimension(:,:), pointer :: wettingVelocity
 
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
       real (kind=RKIND) :: velocityTend_mu
 
       integer :: timeLevel
+      !integer, intent(out) :: iErr
 
-      integer :: err, iEdge, iCell, nLat, nLon, iErr
+      integer :: err, iEdge, iCell
       integer, pointer :: indexTemperature, indexSalinity, nEdges, nCells, nEdges_obs, nCells_obs, nVertLevels
       logical, pointer :: config_use_wetting_drying
       logical, pointer :: config_prevent_drying
       logical, pointer :: config_disable_vel_all_tend, config_AOT_DA_on
       character (len=StrKIND), pointer :: config_pressure_gradient_type, xtime, simulationStartTime
 
-      iErr = 0
+      !iErr = 0
 
       if (present(timeLevelIn)) then
          timeLevel = timeLevelIn
@@ -265,11 +275,10 @@ contains
       call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
       call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
      
-!      call mpas_pool_get_dimension(meshPool, 'nEdges_obs', nEdges_obs)
-!      call mpas_pool_get_dimension(meshPool, 'nCells_obs', nCells_obs)
-
       call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
+      call mpas_pool_get_dimension(tracersPool, 'index_temperature', indexTemperature)
+      call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevel)
       call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
       call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, timeLevel)
@@ -378,144 +387,28 @@ contains
       !
 !      print *, 'tend array size input', shape(tend_normalVelocity)
 !      print *, 'input array size input', shape(normalVelocity)
-      if(config_AOT_DA_on .and. xtime .NE. simulationStartTime) then
-!         call mpas_pool_get_array(forcingPool, 'velocityZonal_obs', velocityZonal_obs)
-!         call mpas_pool_get_array(forcingPool, 'velocityMeridional_obs', velocityMeridional_obs)
-!         call mpas_pool_get_array(forcingPool, 'velocityZonal_interp', velocityZonal_interp)
-!         call mpas_pool_get_array(forcingPool, 'velocityMeridional_interp', velocityMeridional_interp)
-      !!!!!! Read in interpolated horizontal velocity from output_interp file   !!!!!!          
+      if(config_AOT_DA_on) then ! .and. itimestep .ge. 2) then ! only need this part if not restart
+         !!!!!! The fields we will be putting in to the AOT algorithm !!!!!!
+         ! Observed data interpolated to MPAS grid
+         call mpas_pool_get_array(forcingPool, 'velocityZonal_obs', velocityZonal_obs)
+         call mpas_pool_get_array(forcingPool, 'velocityMeridional_obs', velocityMeridional_obs)
+         ! Data from previous time step interpolated onto a rectangular grid,
+         ! interpolated back to MPAS grid
+         !call mpas_pool_get_array(forcingPool, 'velocityZonal_interp', velocityZonal_interp)
+         !call mpas_pool_get_array(forcingPool, 'velocityMeridional_interp', velocityMeridional_interp)
+         call mpas_pool_get_array(forcingPool, 'velocityZonal_interp', velocityZonal_interp)
+         call mpas_pool_get_array(forcingPool, 'velocityMeridional_interp', velocityMeridional_interp)
 
-!      call mpas_pool_get_config(domain % configs,'config_input_obs_file', config_input_obs_file)
-!
-!      call MPAS_createStream(inputObsStream, domain % iocontext, config_input_obs_file, &
-!           MPAS_IO_NETCDF, MPAS_IO_READ, ierr=iErr)
-!!!!! LIKELY NEED THIS FOR DEBUGGING LATER !!!!
-!!      call MPAS_io_inq_dim(inputFile, 'lat', nLat, iErr)
-!!      if(iErr /= 0) then
-!!         call mpas_log_write( 'Validation failed for AOT input data. Could not find dim lat in file:'// &
-!!            trim(config_input_obs_file) , MPAS_LOG_CRIT)
-!!         return
-!!      end if
-!!
-!!      call MPAS_io_inq_dim(inputFile, 'lon', nLon, iErr)
-!!      if(iErr /= 0) then
-!!         call mpas_log_write( 'Validation failed for AOT input data. Could not find dim lon in file:'// &
-!!            trim(config_input_obs_file) , MPAS_LOG_CRIT)
-!!         return
-!!      end if
-!!
-!!      call MPAS_io_inq_dim(inputFile, 'nVertLevels', nVertLevels, iErr)
-!!      if(iErr /= 0) then
-!!         call mpas_log_write( 'Validation failed for AOT input data. Could not find dim nVertLevels in file:'// &
-!!            trim(config_input_obs_file) , MPAS_LOG_CRIT)
-!!         return
-!!      end if
-!
-!       ! Setup velocity input fields for stream to be read in
-!       lat_in % fieldName = 'lat'
-!       lat_in % dimSizes(1) = nLat 
-!       lat_in % dimNames(1) = 'lat'
-!       lat_in % isVarArray = .false.
-!       lat_in % isPersistent = .true.
-!       lat_in % isActive = .true.
-!       lat_in % hasTimeDimension = .false.
-!       lat_in % block => domain % blocklist
-!       allocate(lat_in % attLists(1))
-!       allocate(lat_in % array(nLat))  
-!
-!       iVertLevels_obs % fieldName = 'nVertLevels'
-!       iVertLevels_obs % dimSizes(1) = nVertLevels_obs 
-!       iVertLevels_obs % dimNames(1) = 'nVertLevels'
-!       iVertLevels_obs % isVarArray = .false.
-!       iVertLevels_obs % isPersistent = .true.
-!       iVertLevels_obs % isActive = .true.
-!       iVertLevels_obs % hasTimeDimension = .false.
-!       iVertLevels_obs % block => domain % blocklist
-!       allocate(iVertLevels_obs % attLists(1))
-!       allocate(iVertLevels_obs % array(nVertLevels_obs))  
-!
-!       lon_in % fieldName = 'lon'
-!       lon_in % dimSizes(1) = nLon 
-!       lon_in % dimNames(1) = 'lon'
-!       lon_in % isVarArray = .false.
-!       lon_in % isPersistent = .true.
-!       lon_in % isActive = .true.
-!       lon_in % hasTimeDimension = .false.
-!       lon_in % block => domain % blocklist
-!       allocate(lon_in % attLists(1))
-!       allocate(lon_in % array(nLon))  
-!
-!       velocityZonal_obs % fieldName = 'velocityZonal'
-!       velocityZonal_obs % dimSizes(1) = nLat
-!       velocityZonal_obs % dimSizes(2) = nLon
-!       velocityZonal_obs % dimSizes(3) = nVertLevels_obs
-!       velocityZonal_obs % dimNames(1) = 'lat'
-!       velocityZonal_obs % dimNames(2) = 'lon'
-!       velocityZonal_obs % dimNames(3) = 'nVertLevels'
-!       velocityZonal_obs % isVarArray = .false.
-!       velocityZonal_obs % isPersistent = .true.
-!       velocityZonal_obs % isActive = .true.
-!       velocityZonal_obs % hasTimeDimension = .false.
-!       velocityZonal_obs % block => domain % blocklist
-!       allocate(velocityZonal_obs % attLists(1))
-!       allocate(velocityZonal_obs % array(nLat, nLon, nVertLevels_obs))
-!
-!       velocityMeridional_obs % fieldName = 'velocityMeridional'
-!       velocityMeridional_obs % dimSizes(1) = nLat
-!       velocityMeridional_obs % dimSizes(2) = nLon
-!       velocityMeridional_obs % dimSizes(3) = nVertLevels_obs
-!       velocityMeridional_obs % dimNames(1) = 'lat'
-!       velocityMeridional_obs % dimNames(2) = 'lon'
-!       velocityMeridional_obs % dimNames(3) = 'nVertLevels'
-!       velocityMeridional_obs % isVarArray = .false.
-!       velocityMeridional_obs % isPersistent = .true.
-!       velocityMeridional_obs % isActive = .true.
-!       velocityMeridional_obs % hasTimeDimension = .false.
-!       velocityMeridional_obs % block => domain % blocklist
-!       allocate(velocityMeridional_obs % attLists(1))
-!       allocate(velocityMeridional_obs % array(nLat, nLon, nVertLevels_obs))
-!
-!!       velocityZonal_interp % fieldName = 'velocityZonal'
-!!       velocityZonal_interp % dimSizes(1) = nLat_interp
-!!       velocityZonal_interp % dimSizes(2) = nLon_interp
-!!       velocityZonal_interp % dimSizes(3) = nVertLevels_interp
-!!       velocityZonal_interp % dimNames(1) = 'lat'
-!!       velocityZonal_interp % dimNames(2) = 'lon'
-!!       velocityZonal_interp % dimNames(3) = 'nVertLevels'
-!!       velocityZonal_interp % isVarArray = .false.
-!!       velocityZonal_interp % isPersistent = .true.
-!!       velocityZonal_interp % isActive = .true.
-!!       velocityZonal_interp % hasTimeDimension = .false.
-!!       velocityZonal_interp % block => domain % blocklist
-!!       allocate(velocityZonal_interp % attLists(1))
-!!       allocate(velocityZonal_interp % array(nLat, nLon, nVertLevels))
-!!
-!!       velocityMeridional_interp % fieldName = 'velocityMeridional'
-!!       velocityMeridional_interp % dimSizes(1) = nLat
-!!       velocityMeridional_interp % dimSizes(2) = nLon
-!!       velocityMeridional_interp % dimSizes(3) = nVertLevels
-!!       velocityMeridional_interp % dimNames(1) = 'lat'
-!!       velocityMeridional_interp % dimNames(2) = 'lon'
-!!       velocityMeridional_interp % dimNames(3) = 'nVertLevels'
-!!       velocityMeridional_interp % isVarArray = .false.
-!!       velocityMeridional_interp % isPersistent = .true.
-!!       velocityMeridional_interp % isActive = .true.
-!!       velocityMeridional_interp % hasTimeDimension = .false.
-!!       velocityMeridional_interp % block => domain % blocklist
-!       
-!       call MPAS_streamAddField(inputObsStream, lat_in, iErr)
-!       call MPAS_streamAddField(inputObsStream, lon_in, iErr)
-!       call MPAS_streamAddField(inputObsStream, velocityZonal_obs, iErr)
-!       call MPAS_streamAddField(inputObsStream, velocityMeridional_obs, iErr)
-!
-!       call MPAS_readStream(inputObsStream, 1, iErr)
-!       call MPAS_closeStream(inputObsStream)
-!
-!       call ocn
-!         !!!! INTERPOLATE THESE FIELDS BACK TO THE MPAS GRID !!!! 
-!         call ocn_AOT_DA_velocity_init(velocityTend_mu, err)
-!         call ocn_AOT_DA_velocity_tend(meshPool, velocityZonal_obs, velocityMeridional_obs, velocityZonal_obs, velocityMeridional_obs, velocityTend_mu, tend_normalVelocity, err)
-!         call ocn_AOT_DA_debug_velocity_tend(meshPool, normalVelocity, 1.0, 1.0, velocityTend_mu, tend_normalVelocity, err)
+         !write(111,*), minval(velocityZonal_interp), maxval(velocityZonal_interp)
+         !write(112,*), minval(velocityMeridional_interp), maxval(velocityMeridional_interp)
+
+         !velocityZonal_obs = 1
+         !velocityMeridional_obs = 1
+       !!!! INTERPOLATE THESE FIELDS BACK TO THE MPAS GRID !!!! 
+       call ocn_AOT_DA_velocity_init(velocityTend_mu, err)
+       !call ocn_AOT_DA_velocity_tend(meshPool, normalVelocity, velocityZonal_obs, velocityMeridional_obs, velocityTend_mu, tend_normalVelocity, err)
+       call ocn_AOT_DA_velocity_tend(meshPool, velocityZonal_interp, velocityMeridional_interp, velocityZonal_obs, velocityMeridional_obs, velocityTend_mu, tend_normalVelocity, err)
+       !call ocn_AOT_DA_debug_velocity_tend(meshPool, normalVelocity, 1.0, 1.0, velocityTend_mu, tend_normalVelocity, err)
       endif
 
       !
@@ -537,20 +430,21 @@ contains
 !
 !-----------------------------------------------------------------------
    subroutine ocn_tend_tracer(tendPool, statePool, forcingPool, diagnosticsPool, meshPool, swForcingPool, scratchPool, & !{{{
-                              dt, activeTracersOnlyIn, timeLevelIn )
+                              dt, itimestep, activeTracersOnlyIn, timeLevelIn )
       implicit none
 
       !
       ! intent in/out
       !
       type (mpas_pool_type), intent(inout) :: tendPool        !< Input/Output: Tendency structure
-      type (mpas_pool_type), intent(in)    :: statePool       !< Input: State information
-      type (mpas_pool_type), intent(inout) :: forcingPool     !< Input: Forcing information
-      type (mpas_pool_type), intent(inout)    :: diagnosticsPool !< Input: Diagnostic information
-      type (mpas_pool_type), intent(inout)    :: meshPool     !< Input: Mesh information
+      type (mpas_pool_type), pointer, intent(in)    :: statePool       !< Input: State information
+      type (mpas_pool_type), pointer, intent(inout) :: forcingPool     !< Input: Forcing information
+      type (mpas_pool_type), pointer, intent(inout) :: diagnosticsPool !< Input: Diagnostic information
+      type (mpas_pool_type), pointer, intent(inout) :: meshPool        !< Input: Mesh information
       type (mpas_pool_type), intent(in)    :: swForcingPool   !< Input: sw data input info
       type (mpas_pool_type), intent(in)    :: scratchPool     !< Input: Scratch information
       real (kind=RKIND), intent(in) :: dt                     !< Input: Time step
+      integer, intent(in) :: itimestep
       logical, intent(in), optional :: activeTracersOnlyIn    !< Input: if true, only compute for active tracers
       integer, intent(in), optional :: timeLevelIn            !< Input/Optional: Time Level Indes
 
@@ -562,9 +456,13 @@ contains
       type (mpas_pool_type), pointer :: tracersSurfaceRestoringFieldsPool       ! surface restoring
       type (mpas_pool_type), pointer :: tracersInteriorRestoringFieldsPool      ! interior restoring
       type (mpas_pool_type), pointer :: tracersAOTDataPool                      ! AOT observed data
+      type (mpas_pool_type), pointer :: tracersAOTInterpDataPool                ! AOT interpolated data from previous time step
       type (mpas_pool_type), pointer :: tracersExponentialDecayFieldsPool       ! exponential decay
       type (mpas_pool_type), pointer :: tracersIdealAgeFieldsPool               ! ideal age
       type (mpas_pool_type), pointer :: tracersTTDFieldsPool                    ! transit time distribution
+
+      type (domain_type) :: domain
+      type (block_type), pointer :: block_ptr
 
       ! scalar pointers
       integer :: nTracerGroup, nDebugTracers, nActiveTracers
@@ -590,7 +488,7 @@ contains
       ! one dimensional pointers
       !
       real (kind=RKIND), dimension(:), pointer :: penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL
-      real (kind=RKIND), dimension(:), pointer :: tracerGroupExponentialDecayRate, latCell
+      real (kind=RKIND), dimension(:), pointer :: tracerGroupExponentialDecayRate, latCell, lonCell
       integer, dimension(:), pointer :: maxLevelCell
       real (kind=RKIND), pointer :: temperature_obs, salinity_obs
       
@@ -617,15 +515,15 @@ contains
         ecosysTracers, &  !  need ecosys for DMS and MacroMolecules
         debugTracers      !  basic debugging tracer (specifically for testing AOT)
 
-      real (kind=RKIND), dimension(:,:,:), pointer :: tracerGroupInteriorRestoringRate, tracerGroupInteriorRestoringValue, tracerGroupAOTObservedData
+      real (kind=RKIND), dimension(:,:,:), pointer :: tracerGroupInteriorRestoringRate, tracerGroupInteriorRestoringValue, tracerGroupAOTObservedData, tracerGroupAOTInterpolatedData
 !      real (kind=RKIND), dimension(:,:), pointer :: 
 
       real (kind=RKIND), dimension(:,:,:), pointer :: &
         activeTracerSurfaceFluxTendency,              &
         activeTracerNonLocalTendency
 
-      real (kind=RKIND), dimension(:,:), pointer :: &
-        temperatureShortWaveTendency, temperatureAOTObservedData, salinityAOTObservedData
+      real (kind=RKIND), dimension(:,:), pointer :: &  !!! SHOULD THESE EVEN BE HERE ??? !!!
+        temperatureShortWaveTendency, temperatureAOTObservedData, salinityAOTObservedData, temperatureAOTInterpolatedData, salinityAOTInterpolatedData
 
       !
       ! Field pointers
@@ -635,7 +533,7 @@ contains
       !
       ! local integers/reals/logicals
       !
-      integer :: err, iCell, iEdge, k, timeLevel, nTracersEcosys
+      integer :: err, iCell, iEdge, k, timeLevel, nTracersEcosys, iErr
       logical :: activeTracersOnly    ! if true, only compute for active tracers
       real (kind=RKIND) :: tracer_mu
 
@@ -925,15 +823,31 @@ contains
                ! AOT data assimilation tendency for active tracers (temperature
                ! and salinity
                !
-               if(config_use_tracerGroup_AOT_data_assimilation .and. xtime .NE. simulationStartTime) then 
+               ! for safety, we put an if loop here to make sure it will ONLY
+               ! act on active tracers
+               if(config_use_tracerGroup_AOT_data_assimilation) then ! .and. itimestep .ge. 2) then ! need this for first time only 
                      call mpas_pool_get_subpool(forcingPool, 'tracersAOTdata', tracersAOTDataPool)
                      modifiedGroupName = trim(groupItr % memberName) // "AOTObservedData"
                      call mpas_pool_get_array(tracersAOTDataPool, trim(modifiedGroupName), &
                                            tracerGroupAOTObservedData)
 
+                     call mpas_pool_get_subpool(forcingPool, 'tracersAOTInterpData', tracersAOTInterpDataPool)
+                     modifiedGroupName = trim(groupItr % memberName) // "AOTInterpolatedData"
+                     call mpas_pool_get_array(tracersAOTInterpDataPool, trim(modifiedGroupName), &
+                                           tracerGroupAOTInterpolatedData)
+
+
+                     !! interpolate observed data !!
+                     !call ocn_AOT_read_obs_data(domain, iErr)
+              
+                     !! interpolate gridded data from previous time step !!
+                     !call ocn_AOT_read_interp_data(domain, iErr)
+              
                      call ocn_AOT_DA_TS_init(tracer_mu,err)
-                     call ocn_AOT_DA_TS_compute(nTracerGroup, nCells, maxLevelCell, tracerGroup, &
-                                             tracerGroupAOTObservedData, tracer_mu, tracerGroupTend, layerThickness, err)
+
+                     call ocn_AOT_DA_TS_compute(nTracerGroup, nCells, maxLevelCell, &
+                                                tracerGroupAOTInterpolatedData, tracerGroupAOTObservedData, &
+                                                tracer_mu, tracerGroupTend, layerThickness, err)
 !                 call ocn_AOT_DA_TS_compute_debug(nTracerGroup, nCells, maxLevelCell, tracerGroup, 2.0, tracer_mu, tracerGroupTend, err)
                endif
 
@@ -1260,6 +1174,33 @@ contains
     end subroutine ocn_tendency_init!}}}
 
 !***********************************************************************
+
+
+!subroutine ocn_AOT_block_structure(domain, iErr)
+!       type (domain_type), intent(inout) :: domain
+!       integer, intent(out) :: iErr
+!
+!       type (block_type), pointer :: block_ptr
+!
+!       type (mpas_pool_type), pointer :: meshPool, verticalMeshPool, &
+!                                         forcingPool, diagnosticsPool, &
+!                                         statePool
+!
+!       real (kind=RKIND), dimension(:), pointer :: yCell, xCell
+!
+!       iErr = 0
+!
+!       block_ptr => domain % blocklist
+!       do while(associated(block_ptr))
+!          call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
+!          call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
+!          call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
+!          call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
+!
+!
+!          block_ptr => block_ptr % next
+!       end do
+!end subroutine ocn_AOT_block_structure
 
 end module ocn_tendency
 
