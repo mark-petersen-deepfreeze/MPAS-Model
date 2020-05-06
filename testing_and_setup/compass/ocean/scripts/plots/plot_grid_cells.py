@@ -64,9 +64,9 @@ def main():
 
     # create patches
     patches = []
-    #ind = np.where((latCell>minLat) & (latCell<maxLat) 
-    #    & (lonCell>minLon) & (lonCell<maxLon))[0]
-    ind = np.where(latCell<-55.0*degToRad)[0]
+    ind = np.where((latCell>minLat) & (latCell<maxLat) 
+        & (lonCell>minLon) & (lonCell<maxLon))[0]
+    #ind = np.where(latCell<-55.0*degToRad)[0]
     for iCell in ind:
         # use mask later
         #if(not mask[iCell]):
@@ -93,26 +93,10 @@ def main():
 
     varName = 'temperature'
     var = dataFile.variables[varName][0,:,iLev]
-    ax = plt.subplot(1,1,1,projection=ccrs.RotatedPole(pole_latitude=45, pole_longitude=180))
+    ax = plt.subplot(1,1,1, projection=ccrs.PlateCarree())
     localPatches.set_array(var[ind])
+    ax.add_collection(localPatches)
     ax.set_global()
-    print(polygon)
-    for iCell in ind:
-        # use mask later
-        #if(not mask[iCell]):
-        #    continue
-        nVert = nVerticesOnCell[iCell]
-        vertexIndices = verticesOnCell[iCell, :nVert]
-        vertices = np.zeros((nVert, 2))
-# lat/lon projection
-        vertices[:, 0] = lonVertex[vertexIndices]*radToDeg
-        vertices[:, 1] = latVertex[vertexIndices]*radToDeg
-# polar stereographic
-        #vertices[:, 0] =  yVertex[vertexIndices]*1e-3
-        #vertices[:, 1] =  xVertex[vertexIndices]*1e-3
-        polygon = Polygon(vertices, True)
-        ax.add_patch(polygon)
-    localPatches = PatchCollection(patches, cmap='jet', alpha=1.)
     #plt.colorbar(localPatches)
     ax.gridlines()
     ax.coastlines()
