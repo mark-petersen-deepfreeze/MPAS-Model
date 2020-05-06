@@ -40,10 +40,10 @@ def main():
 
     degToRad = 3.1415/180.
     radToDeg = 180./3.1415
-    minLat = -40 * degToRad
-    maxLat =  40 * degToRad
-    minLon = ( 80) * degToRad
-    maxLon = (160)* degToRad
+    minLat = -80 * degToRad
+    maxLat = -40 * degToRad
+    minLon = (270) * degToRad
+    maxLon = (330)* degToRad
     iLev = 0
 
     # load mesh variables
@@ -66,6 +66,7 @@ def main():
     patches = []
     ind = np.where((latCell>minLat) & (latCell<maxLat) 
         & (lonCell>minLon) & (lonCell<maxLon))[0]
+    print('ind',ind)
     #ind = np.where(latCell<-55.0*degToRad)[0]
     for iCell in ind:
         # use mask later
@@ -75,7 +76,7 @@ def main():
         vertexIndices = verticesOnCell[iCell, :nVert]
         vertices = np.zeros((nVert, 2))
 # lat/lon projection
-        vertices[:, 0] = lonVertex[vertexIndices]*radToDeg
+        vertices[:, 0] = lonVertex[vertexIndices]*radToDeg-360
         vertices[:, 1] = latVertex[vertexIndices]*radToDeg
 # polar stereographic
         #vertices[:, 0] =  yVertex[vertexIndices]*1e-3
@@ -96,7 +97,8 @@ def main():
     ax = plt.subplot(1,1,1, projection=ccrs.PlateCarree())
     localPatches.set_array(var[ind])
     ax.add_collection(localPatches)
-    ax.set_global()
+    #ax.set_global()
+    ax.set_extent([minLon*radToDeg, maxLon*radToDeg, minLat*radToDeg, maxLat*radToDeg])
     #plt.colorbar(localPatches)
     ax.gridlines()
     ax.coastlines()
