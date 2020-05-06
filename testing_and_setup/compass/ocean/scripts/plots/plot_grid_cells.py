@@ -75,11 +75,11 @@ def main():
         vertexIndices = verticesOnCell[iCell, :nVert]
         vertices = np.zeros((nVert, 2))
 # lat/lon projection
-        #vertices[:, 0] = lonVertex[vertexIndices]*radToDeg
-        #vertices[:, 1] = latVertex[vertexIndices]*radToDeg
+        vertices[:, 0] = lonVertex[vertexIndices]*radToDeg
+        vertices[:, 1] = latVertex[vertexIndices]*radToDeg
 # polar stereographic
-        vertices[:, 0] =  yVertex[vertexIndices]*1e-3
-        vertices[:, 1] =  xVertex[vertexIndices]*1e-3
+        #vertices[:, 0] =  yVertex[vertexIndices]*1e-3
+        #vertices[:, 1] =  xVertex[vertexIndices]*1e-3
         polygon = Polygon(vertices, True)
         patches.append(polygon)
     localPatches = PatchCollection(patches, cmap='jet', alpha=1.)
@@ -93,13 +93,32 @@ def main():
 
     varName = 'temperature'
     var = dataFile.variables[varName][0,:,iLev]
-    ax = plt.subplot('221')
+    ax = plt.subplot(1,1,1,projection=ccrs.RotatedPole(pole_latitude=45, pole_longitude=180))
     localPatches.set_array(var[ind])
-    ax.add_collection(localPatches)
-    plt.colorbar(localPatches)
+    ax.set_global()
+    print(polygon)
+    for iCell in ind:
+        # use mask later
+        #if(not mask[iCell]):
+        #    continue
+        nVert = nVerticesOnCell[iCell]
+        vertexIndices = verticesOnCell[iCell, :nVert]
+        vertices = np.zeros((nVert, 2))
+# lat/lon projection
+        vertices[:, 0] = lonVertex[vertexIndices]*radToDeg
+        vertices[:, 1] = latVertex[vertexIndices]*radToDeg
+# polar stereographic
+        #vertices[:, 0] =  yVertex[vertexIndices]*1e-3
+        #vertices[:, 1] =  xVertex[vertexIndices]*1e-3
+        polygon = Polygon(vertices, True)
+        ax.add_patch(polygon)
+    localPatches = PatchCollection(patches, cmap='jet', alpha=1.)
+    #plt.colorbar(localPatches)
+    ax.gridlines()
+    ax.coastlines()
     #plt.axis([0, 500, 0, 1000])
-    ax.set_aspect('equal')
-    ax.autoscale(tight=True)
+    #ax.set_aspect('equal')
+    #ax.autoscale(tight=True)
 
     plt.savefig(args.output_file_name)
 
