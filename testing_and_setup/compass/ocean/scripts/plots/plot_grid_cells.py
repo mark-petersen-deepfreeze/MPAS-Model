@@ -39,10 +39,11 @@ def main():
     args = parser.parse_args()
 
     degToRad = 3.1415/180.
-    minLat =  30 * degToRad
-    maxLat =  50 * degToRad
-    minLon = (-90 + 360) * degToRad
-    maxLon = (-60 + 360)* degToRad
+    radToDeg = 180./3.1415
+    minLat = -40 * degToRad
+    maxLat =  40 * degToRad
+    minLon = ( 80) * degToRad
+    maxLon = (160)* degToRad
     iLev = 0
 
     # load mesh variables
@@ -56,28 +57,29 @@ def main():
     verticesOnCell = dsMesh.verticesOnCell.values - 1
     lonVertex = dsMesh.lonVertex.values
     latVertex = dsMesh.latVertex.values
+    xVertex = dsMesh.xVertex.values
+    yVertex = dsMesh.yVertex.values
     latCell = dsMesh.latCell.values
     lonCell = dsMesh.lonCell.values
-    print(type(verticesOnCell))
-    print(verticesOnCell.size)
-    print(verticesOnCell.shape)
 
     # create patches
     patches = []
-    ind = np.where((latCell>minLat) & (latCell<maxLat) 
-        & (lonCell>minLon) & (lonCell<maxLon))[0]
-    print('ind',ind)
+    #ind = np.where((latCell>minLat) & (latCell<maxLat) 
+    #    & (lonCell>minLon) & (lonCell<maxLon))[0]
+    ind = np.where(latCell<-55.0*degToRad)[0]
     for iCell in ind:
         # use mask later
         #if(not mask[iCell]):
         #    continue
-        print('iCell',iCell)
         nVert = nVerticesOnCell[iCell]
-        print('nVert',nVert,type(nVert))
         vertexIndices = verticesOnCell[iCell, :nVert]
         vertices = np.zeros((nVert, 2))
-        vertices[:, 0] = 1e-3*lonVertex[vertexIndices]
-        vertices[:, 1] = 1e-3*latVertex[vertexIndices]
+# lat/lon projection
+        #vertices[:, 0] = lonVertex[vertexIndices]*radToDeg
+        #vertices[:, 1] = latVertex[vertexIndices]*radToDeg
+# polar stereographic
+        vertices[:, 0] =  yVertex[vertexIndices]*1e-3
+        vertices[:, 1] =  xVertex[vertexIndices]*1e-3
         polygon = Polygon(vertices, True)
         patches.append(polygon)
     localPatches = PatchCollection(patches, cmap='jet', alpha=1.)
@@ -91,7 +93,7 @@ def main():
 
     varName = 'temperature'
     var = dataFile.variables[varName][0,:,iLev]
-    ax = plt.subplot('111')
+    ax = plt.subplot('221')
     localPatches.set_array(var[ind])
     ax.add_collection(localPatches)
     plt.colorbar(localPatches)
