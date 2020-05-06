@@ -5,12 +5,16 @@ This script creates historgram plots of the initial condition.
 # import modules
 from netCDF4 import Dataset
 import numpy as np
+import xarray
 import argparse
 import datetime
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
+from matplotlib.patches import Polygon
+from matplotlib.collections import PatchCollection
+import matplotlib.colors as colors
 import cartopy.crs as ccrs
 import cartopy
 
@@ -43,15 +47,40 @@ def main():
 
     # load mesh variables
     dataFile = Dataset(args.input_file_name, 'r')
+    dsMesh = xarray.open_dataset(args.mesh_file_name)
     meshFile = Dataset(args.mesh_file_name, 'r')
-    nCells = dataFile.dimensions['nCells'].size
-    nEdges = dataFile.dimensions['nEdges'].size
-    nVertLevels = dataFile.dimensions['nVertLevels'].size
-    latCell = meshFile.variables['latCell'][:]
-    lonCell = meshFile.variables['lonCell'][:]
+    nCells = dsMesh.sizes['nCells']
+    nEdges = dsMesh.sizes['nEdges']
+    nVertLevels = dsMesh.sizes['nVertLevels']
+    nVerticesOnCell = dsMesh.nEdgesOnCell.values
+    verticesOnCell = dsMesh.verticesOnCell.values - 1
+    lonVertex = dsMesh.lonVertex.values
+    latVertex = dsMesh.latVertex.values
+    latCell = dsMesh.latCell.values
+    lonCell = dsMesh.lonCell.values
+    print(type(verticesOnCell))
+    print(verticesOnCell.size)
+    print(verticesOnCell.shape)
 
+    # create patches
+    patches = []
     ind = np.where((latCell>minLat) & (latCell<maxLat) 
-        & (lonCell>minLon) & (lonCell<maxLon))
+        & (lonCell>minLon) & (lonCell<maxLon))[0]
+    print('ind',ind)
+    for iCell in ind:
+        # use mask later
+        #if(not mask[iCell]):
+        #    continue
+        print('iCell',iCell)
+        nVert = nVerticesOnCell[iCell]
+        print('nVert',nVert,type(nVert))
+        vertexIndices = verticesOnCell[iCell, :nVert]
+        vertices = np.zeros((nVert, 2))
+        vertices[:, 0] = 1e-3*lonVertex[vertexIndices]
+        vertices[:, 1] = 1e-3*latVertex[vertexIndices]
+        polygon = Polygon(vertices, True)
+        patches.append(polygon)
+    localPatches = PatchCollection(patches, cmap='jet', alpha=1.)
 
     #ind = np.where(latCell<-60*degToRad) 
     fig = plt.figure()
@@ -62,9 +91,14 @@ def main():
 
     varName = 'temperature'
     var = dataFile.variables[varName][0,:,iLev]
-    print(var[ind])
-    plt.scatter(lonCell[ind],latCell[ind],c=var[ind])
-    plt.colorbar()
+    ax = plt.subplot('111')
+    localPatches.set_array(var[ind])
+    ax.add_collection(localPatches)
+    plt.colorbar(localPatches)
+    #plt.axis([0, 500, 0, 1000])
+    ax.set_aspect('equal')
+    ax.autoscale(tight=True)
+
     plt.savefig(args.output_file_name)
 
     #d = datetime.datetime.today()
@@ -145,7 +179,24 @@ def main():
     #plt.axis('off')
 
     #plt.savefig(args.output_file_name)
-
+def _compute_cell_patches(dsMesh, mask, cmap):
+    patches = []
+    nVerticesOnCell = dsMesh.nEdgesOnCell.values
+    verticesOnCell = dsMesh.verticesOnCell.values - 1
+    lonVertex = dsMesh.lonVertex.values
+    latVertex = dsMesh.latVertex.values
+    for iCell in range(dsMesh.sizes['nCells']):
+        if(not mask[iCell]):
+            continue
+        nVert = nVerticesOnCell[iCell]
+        vertexIndices = verticesOnCell[iCell, :nVert]
+        vertices = numpy.zeros((nVert, 2))
+        vertices[:, 0] = 1e-3*lonVertex[vertexIndices]
+        vertices[:, 1] = 1e-3*latVertex[vertexIndices]
+        polygon = Polygon(vertices, True)
+        patches.append(polygon)
+    p = PatchCollection(patches, cmap=cmap, alpha=1.)
+    return p
 
 if __name__ == '__main__':
     # If called as a primary module, run main
