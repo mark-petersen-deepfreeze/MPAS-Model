@@ -15,7 +15,7 @@ from matplotlib.font_manager import FontProperties
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 import matplotlib.colors as colors
-import cartopy.crs as ccrs
+import cartopy.crs as crs
 import cartopy
 
 
@@ -62,11 +62,14 @@ def main():
     latCell = dsMesh.latCell.values
     lonCell = dsMesh.lonCell.values
 
+    #trans = crs.PlateCarree()
+    #trans = crs.RotatedPole(pole_latitude=45, pole_longitude=180)
+    trans = crs.Robinson()
+
     # create patches
     patches = []
     ind = np.where((latCell>minLat) & (latCell<maxLat) 
         & (lonCell>minLon) & (lonCell<maxLon))[0]
-    print('ind',ind)
     #ind = np.where(latCell<-55.0*degToRad)[0]
     for iCell in ind:
         # use mask later
@@ -76,14 +79,14 @@ def main():
         vertexIndices = verticesOnCell[iCell, :nVert]
         vertices = np.zeros((nVert, 2))
 # lat/lon projection
-        vertices[:, 0] = lonVertex[vertexIndices]*radToDeg-360
+        vertices[:, 0] = lonVertex[vertexIndices]*radToDeg+360
         vertices[:, 1] = latVertex[vertexIndices]*radToDeg
 # polar stereographic
         #vertices[:, 0] =  yVertex[vertexIndices]*1e-3
         #vertices[:, 1] =  xVertex[vertexIndices]*1e-3
         polygon = Polygon(vertices, True)
         patches.append(polygon)
-    localPatches = PatchCollection(patches, cmap='jet', alpha=1.)
+    localPatches = PatchCollection(patches, cmap='jet', alpha=1., transform=trans)
 
     #ind = np.where(latCell<-60*degToRad) 
     fig = plt.figure()
@@ -94,12 +97,13 @@ def main():
 
     varName = 'temperature'
     var = dataFile.variables[varName][0,:,iLev]
-    ax = plt.subplot(1,1,1, projection=ccrs.PlateCarree())
+    ax = plt.subplot(1,1,1, projection=trans)
+    ax.set_global()
     localPatches.set_array(var[ind])
+    localPatches.set_transform(trans)
     ax.add_collection(localPatches)
-    #ax.set_global()
-    ax.set_extent([minLon*radToDeg, maxLon*radToDeg, minLat*radToDeg, maxLat*radToDeg])
-    #plt.colorbar(localPatches)
+    #ax.set_extent([minLon*radToDeg, maxLon*radToDeg, minLat*radToDeg, maxLat*radToDeg])
+    plt.colorbar(localPatches)
     ax.gridlines()
     ax.coastlines()
     #plt.axis([0, 500, 0, 1000])
