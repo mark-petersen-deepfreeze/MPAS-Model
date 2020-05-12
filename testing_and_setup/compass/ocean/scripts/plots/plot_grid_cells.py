@@ -62,9 +62,7 @@ def main():
     latCell = dsMesh.latCell.values
     lonCell = dsMesh.lonCell.values
 
-    #trans = crs.PlateCarree()
-    #trans = crs.RotatedPole(pole_latitude=45, pole_longitude=180)
-    trans = crs.Robinson()
+    trans = crs.PlateCarree()
 
     # create patches
     patches = []
@@ -98,11 +96,11 @@ def main():
     varName = 'temperature'
     var = dataFile.variables[varName][0,:,iLev]
     ax = plt.subplot(1,1,1, projection=trans)
-    ax.set_global()
     localPatches.set_array(var[ind])
-    localPatches.set_transform(trans)
+    #localPatches.set_transform(trans)
     ax.add_collection(localPatches)
-    #ax.set_extent([minLon*radToDeg, maxLon*radToDeg, minLat*radToDeg, maxLat*radToDeg])
+    #ax.set_global()
+    ax.set_extent([minLon*radToDeg, maxLon*radToDeg, minLat*radToDeg, maxLat*radToDeg])
     plt.colorbar(localPatches)
     ax.gridlines()
     ax.coastlines()
