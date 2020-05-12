@@ -40,10 +40,6 @@ def main():
 
     degToRad = 3.1415/180.
     radToDeg = 180./3.1415
-    minLat = -80 * degToRad
-    maxLat = -40 * degToRad
-    minLon = (270) * degToRad
-    maxLon = (330)* degToRad
     km=1e3
 
     # load mesh variables
@@ -55,10 +51,6 @@ def main():
     nVertLevels = dsMesh.sizes['nVertLevels']
     nVerticesOnCell = dsMesh.nEdgesOnCell.values
     verticesOnCell = dsMesh.verticesOnCell.values - 1
-    #lonVertex = dsMesh.lonVertex.values
-    #latVertex = dsMesh.latVertex.values
-    xVertex = dsMesh.xVertex.values
-    yVertex = dsMesh.yVertex.values
     latCell = dsMesh.latCell.values
     lonCell = dsMesh.lonCell.values
     xCell = dsMesh.xCell.values
@@ -69,14 +61,22 @@ def main():
     # create patches
     patches = []
 # lat/lon projection
-    #ind = np.where((latCell>minLat) & (latCell<maxLat) 
-    #    & (lonCell>minLon) & (lonCell<maxLon))[0]
+    latMin = -80; latMax = -40; lonMin = 270; lonMax = 330; # Drake Passage, zoom out
+    latMin = -65; latMax = -54; lonMin = 285; lonMax = 310; # Drake Passage, zoom in
 # polar orthographic
     xMin=-1300; xMax=-900; yMin=-1600; yMax=-1200; # Ross Sea
     #xMin=-3000; xMax=3000; yMin=-3000; yMax=3000; # Wide view of Antarctica
-    ind = np.where((latCell<-40.0*degToRad)
-        & (xCell>yMin*km) & (xCell<yMax*km)
-        & (yCell>xMin*km) & (yCell<xMax*km))[0]
+# lat/lon projection
+    lonVertex = dsMesh.lonVertex.values
+    latVertex = dsMesh.latVertex.values
+    ind = np.where((latCell>latMin*degToRad) & (latCell<latMax*degToRad) 
+        & (lonCell>lonMin*degToRad) & (lonCell<lonMax*degToRad))[0]
+# polar orthographic
+    #xVertex = dsMesh.xVertex.values
+    #yVertex = dsMesh.yVertex.values
+    #ind = np.where((latCell<-40.0*degToRad)
+    #    & (xCell>yMin*km) & (xCell<yMax*km)
+    #    & (yCell>xMin*km) & (yCell<xMax*km))[0]
     for iCell in ind:
         # use mask later
         #if(not mask[iCell]):
@@ -85,17 +85,16 @@ def main():
         vertexIndices = verticesOnCell[iCell, :nVert]
         vertices = np.zeros((nVert, 2))
 # lat/lon projection
-        #vertices[:, 0] = lonVertex[vertexIndices]*radToDeg+360
-        #vertices[:, 1] = latVertex[vertexIndices]*radToDeg
+        vertices[:, 0] = lonVertex[vertexIndices]*radToDeg
+        vertices[:, 1] = latVertex[vertexIndices]*radToDeg
 # polar orthographic
-        vertices[:, 0] =  yVertex[vertexIndices]*1e-3
-        vertices[:, 1] =  xVertex[vertexIndices]*1e-3
+        #vertices[:, 0] =  yVertex[vertexIndices]*1e-3
+        #vertices[:, 1] =  xVertex[vertexIndices]*1e-3
         polygon = Polygon(vertices, True)
         patches.append(polygon)
     #localPatches = PatchCollection(patches, cmap='jet', alpha=1., transform=trans)
     localPatches = PatchCollection(patches, cmap='jet', alpha=1.)
 
-    #ind = np.where(latCell<-60*degToRad) 
     fig = plt.figure()
     fig.set_size_inches(16.0, 12.0)
     plt.clf()
@@ -130,22 +129,25 @@ def main():
             localPatches = PatchCollection(patches, cmap='jet', alpha=1.)
             localPatches.set_array(varData[ind])
             ax.add_collection(localPatches)
-            plt.axis([xMin, xMax, yMin, yMax])
+            #plt.axis([xMin, xMax, yMin, yMax])
+            plt.axis([lonMin,lonMax,latMin,latMax])
             plt.title(varName)
             plt.ylabel('level: ' + str(levs[iRow]))
             plt.grid('true')
-            ax.set_xticklabels([])
-            ax.set_yticklabels([])
+            if iRow<nRows-1:
+                ax.set_xticklabels([])
+            if iCol>0:
+                ax.set_yticklabels([])
             plt.colorbar(localPatches)
             if varName!='temperature':
-                maxAbsVal = 0.8*max(abs(varData))
+                maxAbsVal = 0.8*max(abs(varData[ind]))
                 localPatches.set_clim(-maxAbsVal,maxAbsVal)
 
     plt.savefig(args.output_file_name)
 
 #    #ax.set_global()
 ## lat/lon
-#    #ax.set_extent([minLon*radToDeg, maxLon*radToDeg, minLat*radToDeg, maxLat*radToDeg])
+#    #ax.set_extent([lonMin*radToDeg, lonMax*radToDeg, latMin*radToDeg, latMax*radToDeg])
 #    #ax.gridlines()
 #    plt.colorbar(localPatches)
 #    varData = dataFile.variables[varName][iTime,:,iLev]
@@ -159,7 +161,7 @@ def main():
 #    plt.axis([xMin, xMax, yMin, yMax])
 #    #ax.set_global()
 ## lat/lon
-#    #ax.set_extent([minLon*radToDeg, maxLon*radToDeg, minLat*radToDeg, maxLat*radToDeg])
+#    #ax.set_extent([lonMin*radToDeg, lonMax*radToDeg, latMin*radToDeg, latMax*radToDeg])
 #    #ax.gridlines()
 #    plt.colorbar(localPatches)
 #    #ax.coastlines()
