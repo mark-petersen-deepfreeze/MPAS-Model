@@ -44,8 +44,6 @@ def main():
     maxLat = -40 * degToRad
     minLon = (270) * degToRad
     maxLon = (330)* degToRad
-    iLev = 0
-    iTime = 2
     km=1e3
 
     # load mesh variables
@@ -95,7 +93,6 @@ def main():
         patches.append(polygon)
     #localPatches = PatchCollection(patches, cmap='jet', alpha=1., transform=trans)
     localPatches = PatchCollection(patches, cmap='jet', alpha=1.)
-    print(len(ind))
 
     #ind = np.where(latCell<-60*degToRad) 
     fig = plt.figure()
@@ -105,28 +102,57 @@ def main():
     print('plotting zoomed-in area to see noise...')
 
     varNames = ['temperature','divergence','vertVelocityTop','vertTransportVelocityTop']
-    nVars = len(varNames)
-    varName = 'temperature'
-    var = dataFile.variables[varName][iTime,:,iLev]
-    #ax = plt.subplot(1,1,1, projection=trans)
-    ax = plt.subplot(1,1,1)
-    localPatches.set_array(var[ind])
-    #localPatches.set_transform(trans)
-    ax.add_collection(localPatches)
-    R=4000.
-    #plt.axis([-R, R, -R, R])
-    plt.axis([xMin, xMax, yMin, yMax])
-    #ax.set_global()
-# lat/lon
-    #ax.set_extent([minLon*radToDeg, maxLon*radToDeg, minLat*radToDeg, maxLat*radToDeg])
-    #ax.gridlines()
-    plt.colorbar(localPatches)
-    #ax.coastlines()
-    #plt.axis([0, 500, 0, 1000])
-    #ax.set_aspect('equal')
-    #ax.autoscale(tight=True)
+    levs = [0,5,10,20]
+    nCols = len(varNames)
+    nRows = len(levs)
+    iTime = 2
+    #fig,axes = plt.subplots(nrows=nRows,ncols=nCols,figsize=(16,12))
+    for iCol in range(nCols):
+        varName = varNames[iCol]
+        for iRow in range(nRows):
+            ax = fig.add_subplot(nRows,nCols,1+iCol+nRows*iRow)
+            varData = dataFile.variables[varName][iTime,:,levs[iRow]]
+            if varName=='temperature':
+                indLand = np.where(varData<-1e33)
+                varData[indLand] = 0.0
+            localPatches = PatchCollection(patches, cmap='jet', alpha=1.)
+            localPatches.set_array(varData[ind])
+            ax.add_collection(localPatches)
+            plt.axis([xMin, xMax, yMin, yMax])
+            plt.title(varName)
+            plt.ylabel('level: ' + str(levs[iRow]))
+            plt.xticks([]),plt.yticks([])
+            plt.colorbar(localPatches)
+            #if varName!='temperature':
+            #    maxAbsVal = max(abs(varData))
+            #    #cbar.set_clim(-maxAbsVal,maxAbsVal)
 
     plt.savefig(args.output_file_name)
+
+#    #ax.set_global()
+## lat/lon
+#    #ax.set_extent([minLon*radToDeg, maxLon*radToDeg, minLat*radToDeg, maxLat*radToDeg])
+#    #ax.gridlines()
+#    plt.colorbar(localPatches)
+#    varData = dataFile.variables[varName][iTime,:,iLev]
+#    #ax = plt.subplot(1,1,1, projection=trans)
+#    ax = plt.subplot(1,1,1)
+#    localPatches.set_array(varData[ind])
+#    #localPatches.set_transform(trans)
+#    ax.add_collection(localPatches)
+#    R=4000.
+#    #plt.axis([-R, R, -R, R])
+#    plt.axis([xMin, xMax, yMin, yMax])
+#    #ax.set_global()
+## lat/lon
+#    #ax.set_extent([minLon*radToDeg, maxLon*radToDeg, minLat*radToDeg, maxLat*radToDeg])
+#    #ax.gridlines()
+#    plt.colorbar(localPatches)
+#    #ax.coastlines()
+#    #plt.axis([0, 500, 0, 1000])
+#    #ax.set_aspect('equal')
+#    #ax.autoscale(tight=True)
+
 
     #d = datetime.datetime.today()
     #txt = \
