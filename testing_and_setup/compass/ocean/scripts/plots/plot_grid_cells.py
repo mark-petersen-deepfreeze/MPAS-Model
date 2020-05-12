@@ -58,10 +58,13 @@ def main():
 
     trans = crs.PlateCarree()
 
-    # create patches
-    patches = []
+    iTime = 3
+    levs = [0,5,10,20]
+    #levs = [10,11,12,13]
     #projection='latlon'
     projection='polarOrthographic'
+    #varNames = ['temperature','divergence','vertVelocityTop','frazilLayerThicknessTendency']
+    varNames = ['temperature','salinity','divergence','vertVelocityTop']
     if projection=='latlon':
         #latMin = -80; latMax = -40; lonMin = 270; lonMax = 330; # Drake Passage, zoom out
         latMin = -65; latMax = -54; lonMin = 285; lonMax = 310; # Drake Passage, zoom in
@@ -71,7 +74,7 @@ def main():
             & (lonCell>lonMin*degToRad) & (lonCell<lonMax*degToRad))[0]
         extents = [lonMin,lonMax,latMin,latMax]
     elif projection=='polarOrthographic':
-        xMin=-1400; xMax=-800; yMin=-1800; yMax=-1200; # Ross Sea, zoom out
+        xMin=-1500; xMax=-900; yMin=-1800; yMax=-1200; # Ross Sea, zoom out
         #xMin=-1300; xMax=-900; yMin=-1600; yMax=-1200; # Ross Sea
         #xMin=-3000; xMax=3000; yMin=-3000; yMax=3000; # Wide view of Antarctica
         xVertex = dsMesh.xVertex.values
@@ -81,6 +84,7 @@ def main():
             & (yCell>xMin*km) & (yCell<xMax*km))[0]
         extents = [xMin, xMax, yMin, yMax]
 
+    patches = []
     for iCell in ind:
         # use mask later
         #if(not mask[iCell]):
@@ -105,11 +109,8 @@ def main():
 
     print('plotting zoomed-in area to see noise...')
 
-    varNames = ['temperature','divergence','vertVelocityTop','frazilLayerThicknessTendency']
-    levs = [0,5,10,20]
     nCols = len(varNames)
     nRows = len(levs)
-    iTime = 3
     #fig,axes = plt.subplots(nrows=nRows,ncols=nCols,figsize=(16,12))
     for iCol in range(nCols):
         for iRow in range(nRows):
@@ -118,9 +119,9 @@ def main():
             ax = fig.add_subplot(nRows,nCols,1+iCol+nRows*iRow)
             varData = dataFile.variables[varName][iTime,:,levs[iRow]]
             yLabel = 'level: ' + str(levs[iRow])
-            if varName=='temperature':
+            if varName=='temperature' or varName=='salinity':
                 indLand = np.where(varData<-1e33)
-                varData[indLand] = 0.0
+                varData[indLand] = max(varData[ind])
             if varName=='frazilLayerThicknessTendency':
                 if iRow==2:
                     varName='accumulatedFrazilIceMass'
@@ -142,7 +143,7 @@ def main():
             if iCol>0:
                 ax.set_yticklabels([])
             plt.colorbar(localPatches)
-            if varName!='temperature':
+            if varName!='temperature' and varName!='salinity':
                 maxAbsVal = 0.8*max(abs(varData[ind]))
                 localPatches.set_clim(-maxAbsVal,maxAbsVal)
 
