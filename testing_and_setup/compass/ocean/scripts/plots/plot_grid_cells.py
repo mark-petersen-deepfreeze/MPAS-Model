@@ -60,23 +60,27 @@ def main():
 
     # create patches
     patches = []
-# lat/lon projection
-    latMin = -80; latMax = -40; lonMin = 270; lonMax = 330; # Drake Passage, zoom out
-    latMin = -65; latMax = -54; lonMin = 285; lonMax = 310; # Drake Passage, zoom in
-# polar orthographic
-    xMin=-1300; xMax=-900; yMin=-1600; yMax=-1200; # Ross Sea
-    #xMin=-3000; xMax=3000; yMin=-3000; yMax=3000; # Wide view of Antarctica
-# lat/lon projection
-    lonVertex = dsMesh.lonVertex.values
-    latVertex = dsMesh.latVertex.values
-    ind = np.where((latCell>latMin*degToRad) & (latCell<latMax*degToRad) 
-        & (lonCell>lonMin*degToRad) & (lonCell<lonMax*degToRad))[0]
-# polar orthographic
-    #xVertex = dsMesh.xVertex.values
-    #yVertex = dsMesh.yVertex.values
-    #ind = np.where((latCell<-40.0*degToRad)
-    #    & (xCell>yMin*km) & (xCell<yMax*km)
-    #    & (yCell>xMin*km) & (yCell<xMax*km))[0]
+    #projection='latlon'
+    projection='polarOrthographic'
+    if projection=='latlon':
+        #latMin = -80; latMax = -40; lonMin = 270; lonMax = 330; # Drake Passage, zoom out
+        latMin = -65; latMax = -54; lonMin = 285; lonMax = 310; # Drake Passage, zoom in
+        lonVertex = dsMesh.lonVertex.values
+        latVertex = dsMesh.latVertex.values
+        ind = np.where((latCell>latMin*degToRad) & (latCell<latMax*degToRad) 
+            & (lonCell>lonMin*degToRad) & (lonCell<lonMax*degToRad))[0]
+        extents = [lonMin,lonMax,latMin,latMax]
+    elif projection=='polarOrthographic':
+        xMin=-1400; xMax=-800; yMin=-1800; yMax=-1200; # Ross Sea, zoom out
+        #xMin=-1300; xMax=-900; yMin=-1600; yMax=-1200; # Ross Sea
+        #xMin=-3000; xMax=3000; yMin=-3000; yMax=3000; # Wide view of Antarctica
+        xVertex = dsMesh.xVertex.values
+        yVertex = dsMesh.yVertex.values
+        ind = np.where((latCell<-40.0*degToRad)
+            & (xCell>yMin*km) & (xCell<yMax*km)
+            & (yCell>xMin*km) & (yCell<xMax*km))[0]
+        extents = [xMin, xMax, yMin, yMax]
+
     for iCell in ind:
         # use mask later
         #if(not mask[iCell]):
@@ -84,12 +88,12 @@ def main():
         nVert = nVerticesOnCell[iCell]
         vertexIndices = verticesOnCell[iCell, :nVert]
         vertices = np.zeros((nVert, 2))
-# lat/lon projection
-        vertices[:, 0] = lonVertex[vertexIndices]*radToDeg
-        vertices[:, 1] = latVertex[vertexIndices]*radToDeg
-# polar orthographic
-        #vertices[:, 0] =  yVertex[vertexIndices]*1e-3
-        #vertices[:, 1] =  xVertex[vertexIndices]*1e-3
+        if projection=='latlon':
+            vertices[:, 0] = lonVertex[vertexIndices]*radToDeg
+            vertices[:, 1] = latVertex[vertexIndices]*radToDeg
+        elif projection=='polarOrthographic':
+            vertices[:, 0] =  yVertex[vertexIndices]*1e-3
+            vertices[:, 1] =  xVertex[vertexIndices]*1e-3
         polygon = Polygon(vertices, True)
         patches.append(polygon)
     #localPatches = PatchCollection(patches, cmap='jet', alpha=1., transform=trans)
@@ -129,8 +133,7 @@ def main():
             localPatches = PatchCollection(patches, cmap='jet', alpha=1.)
             localPatches.set_array(varData[ind])
             ax.add_collection(localPatches)
-            #plt.axis([xMin, xMax, yMin, yMax])
-            plt.axis([lonMin,lonMax,latMin,latMax])
+            plt.axis(extents)
             plt.title(varName)
             plt.ylabel('level: ' + str(levs[iRow]))
             plt.grid('true')
