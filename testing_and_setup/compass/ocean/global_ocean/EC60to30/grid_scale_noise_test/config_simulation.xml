@@ -14,6 +14,7 @@
 		<option name="config_run_duration">'00-00-30_00:00:00'</option>
 		<option name="config_do_restart">.true.</option>
 		<option name="config_start_time">'file'</option>
+		<option name="config_use_frazil_ice_formation">.true.</option>
 		<template file="global_stats.xml" path_base="script_core_dir" path="templates/analysis_members"/>
 	</namelist>
 
@@ -33,6 +34,10 @@
 				<member name="vertVelocityTop" type="var"/>
 				<member name="pressure" type="var"/>
 				<member name="divergence" type="var"/>
+				<member name="frazilLayerThicknessTendency" type="var"/>
+				<member name="frazilTemperatureTendency" type="var"/>
+				<member name="accumulatedFrazilIceMass" type="var"/>
+				<member name="accumulatedFrazilIceSalinity" type="var"/>
 			</add_contents>
 		</stream>
 		<stream name="restart">

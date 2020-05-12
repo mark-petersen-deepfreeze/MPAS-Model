@@ -72,8 +72,9 @@ def main():
     #ind = np.where((latCell>minLat) & (latCell<maxLat) 
     #    & (lonCell>minLon) & (lonCell<maxLon))[0]
 # polar orthographic
-    xMin=-1300; xMax=-900; yMin=-1600; yMax=-1200;
-    ind = np.where((latCell<-60.0*degToRad)
+    xMin=-1300; xMax=-900; yMin=-1600; yMax=-1200; # Ross Sea
+    #xMin=-3000; xMax=3000; yMin=-3000; yMax=3000; # Wide view of Antarctica
+    ind = np.where((latCell<-40.0*degToRad)
         & (xCell>yMin*km) & (xCell<yMax*km)
         & (yCell>xMin*km) & (yCell<xMax*km))[0]
     for iCell in ind:
@@ -101,31 +102,44 @@ def main():
 
     print('plotting zoomed-in area to see noise...')
 
-    varNames = ['temperature','divergence','vertVelocityTop','vertTransportVelocityTop']
+    varNames = ['temperature','divergence','vertVelocityTop','frazilLayerThicknessTendency']
     levs = [0,5,10,20]
     nCols = len(varNames)
     nRows = len(levs)
-    iTime = 2
+    iTime = 3
     #fig,axes = plt.subplots(nrows=nRows,ncols=nCols,figsize=(16,12))
     for iCol in range(nCols):
-        varName = varNames[iCol]
         for iRow in range(nRows):
+            varName = varNames[iCol]
+            #print(iCol,iRow)
             ax = fig.add_subplot(nRows,nCols,1+iCol+nRows*iRow)
             varData = dataFile.variables[varName][iTime,:,levs[iRow]]
+            yLabel = 'level: ' + str(levs[iRow])
             if varName=='temperature':
                 indLand = np.where(varData<-1e33)
                 varData[indLand] = 0.0
+            if varName=='frazilLayerThicknessTendency':
+                if iRow==2:
+                    varName='accumulatedFrazilIceMass'
+                    varData = dataFile.variables[varName][iTime,:]
+                    yLabel = 'column sum'
+                elif iRow==3:
+                    varName='accumulatedFrazilIceSalinity'
+                    varData = dataFile.variables[varName][iTime,:]
+                    yLabel = 'column sum'
             localPatches = PatchCollection(patches, cmap='jet', alpha=1.)
             localPatches.set_array(varData[ind])
             ax.add_collection(localPatches)
             plt.axis([xMin, xMax, yMin, yMax])
             plt.title(varName)
             plt.ylabel('level: ' + str(levs[iRow]))
-            plt.xticks([]),plt.yticks([])
+            plt.grid('true')
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
             plt.colorbar(localPatches)
-            #if varName!='temperature':
-            #    maxAbsVal = max(abs(varData))
-            #    #cbar.set_clim(-maxAbsVal,maxAbsVal)
+            if varName!='temperature':
+                maxAbsVal = 0.8*max(abs(varData))
+                localPatches.set_clim(-maxAbsVal,maxAbsVal)
 
     plt.savefig(args.output_file_name)
 
