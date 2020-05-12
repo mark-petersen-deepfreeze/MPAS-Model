@@ -45,6 +45,8 @@ def main():
     minLon = (270) * degToRad
     maxLon = (330)* degToRad
     iLev = 0
+    iTime = 2
+    km=1e3
 
     # load mesh variables
     dataFile = Dataset(args.input_file_name, 'r')
@@ -55,20 +57,27 @@ def main():
     nVertLevels = dsMesh.sizes['nVertLevels']
     nVerticesOnCell = dsMesh.nEdgesOnCell.values
     verticesOnCell = dsMesh.verticesOnCell.values - 1
-    lonVertex = dsMesh.lonVertex.values
-    latVertex = dsMesh.latVertex.values
+    #lonVertex = dsMesh.lonVertex.values
+    #latVertex = dsMesh.latVertex.values
     xVertex = dsMesh.xVertex.values
     yVertex = dsMesh.yVertex.values
     latCell = dsMesh.latCell.values
     lonCell = dsMesh.lonCell.values
+    xCell = dsMesh.xCell.values
+    yCell = dsMesh.yCell.values
 
     trans = crs.PlateCarree()
 
     # create patches
     patches = []
-    ind = np.where((latCell>minLat) & (latCell<maxLat) 
-        & (lonCell>minLon) & (lonCell<maxLon))[0]
-    #ind = np.where(latCell<-55.0*degToRad)[0]
+# lat/lon projection
+    #ind = np.where((latCell>minLat) & (latCell<maxLat) 
+    #    & (lonCell>minLon) & (lonCell<maxLon))[0]
+# polar orthographic
+    xMin=-1300; xMax=-900; yMin=-1600; yMax=-1200;
+    ind = np.where((latCell<-60.0*degToRad)
+        & (xCell>yMin*km) & (xCell<yMax*km)
+        & (yCell>xMin*km) & (yCell<xMax*km))[0]
     for iCell in ind:
         # use mask later
         #if(not mask[iCell]):
@@ -77,14 +86,16 @@ def main():
         vertexIndices = verticesOnCell[iCell, :nVert]
         vertices = np.zeros((nVert, 2))
 # lat/lon projection
-        vertices[:, 0] = lonVertex[vertexIndices]*radToDeg+360
-        vertices[:, 1] = latVertex[vertexIndices]*radToDeg
-# polar stereographic
-        #vertices[:, 0] =  yVertex[vertexIndices]*1e-3
-        #vertices[:, 1] =  xVertex[vertexIndices]*1e-3
+        #vertices[:, 0] = lonVertex[vertexIndices]*radToDeg+360
+        #vertices[:, 1] = latVertex[vertexIndices]*radToDeg
+# polar orthographic
+        vertices[:, 0] =  yVertex[vertexIndices]*1e-3
+        vertices[:, 1] =  xVertex[vertexIndices]*1e-3
         polygon = Polygon(vertices, True)
         patches.append(polygon)
-    localPatches = PatchCollection(patches, cmap='jet', alpha=1., transform=trans)
+    #localPatches = PatchCollection(patches, cmap='jet', alpha=1., transform=trans)
+    localPatches = PatchCollection(patches, cmap='jet', alpha=1.)
+    print(len(ind))
 
     #ind = np.where(latCell<-60*degToRad) 
     fig = plt.figure()
@@ -93,17 +104,24 @@ def main():
 
     print('plotting zoomed-in area to see noise...')
 
+    varNames = ['temperature','divergence','vertVelocityTop','vertTransportVelocityTop']
+    nVars = len(varNames)
     varName = 'temperature'
-    var = dataFile.variables[varName][0,:,iLev]
-    ax = plt.subplot(1,1,1, projection=trans)
+    var = dataFile.variables[varName][iTime,:,iLev]
+    #ax = plt.subplot(1,1,1, projection=trans)
+    ax = plt.subplot(1,1,1)
     localPatches.set_array(var[ind])
     #localPatches.set_transform(trans)
     ax.add_collection(localPatches)
+    R=4000.
+    #plt.axis([-R, R, -R, R])
+    plt.axis([xMin, xMax, yMin, yMax])
     #ax.set_global()
-    ax.set_extent([minLon*radToDeg, maxLon*radToDeg, minLat*radToDeg, maxLat*radToDeg])
+# lat/lon
+    #ax.set_extent([minLon*radToDeg, maxLon*radToDeg, minLat*radToDeg, maxLat*radToDeg])
+    #ax.gridlines()
     plt.colorbar(localPatches)
-    ax.gridlines()
-    ax.coastlines()
+    #ax.coastlines()
     #plt.axis([0, 500, 0, 1000])
     #ax.set_aspect('equal')
     #ax.autoscale(tight=True)
@@ -192,14 +210,18 @@ def _compute_cell_patches(dsMesh, mask, cmap):
     patches = []
     nVerticesOnCell = dsMesh.nEdgesOnCell.values
     verticesOnCell = dsMesh.verticesOnCell.values - 1
-    lonVertex = dsMesh.lonVertex.values
-    latVertex = dsMesh.latVertex.values
+    #lonVertex = dsMesh.lonVertex.values
+    #latVertex = dsMesh.latVertex.values
     for iCell in range(dsMesh.sizes['nCells']):
         if(not mask[iCell]):
             continue
         nVert = nVerticesOnCell[iCell]
         vertexIndices = verticesOnCell[iCell, :nVert]
         vertices = numpy.zeros((nVert, 2))
+# lat/lon
+        #vertices[:, 0] = 1e-3*lonVertex[vertexIndices]
+        #vertices[:, 1] = 1e-3*latVertex[vertexIndices]
+# polar orthographic
         vertices[:, 0] = 1e-3*lonVertex[vertexIndices]
         vertices[:, 1] = 1e-3*latVertex[vertexIndices]
         polygon = Polygon(vertices, True)

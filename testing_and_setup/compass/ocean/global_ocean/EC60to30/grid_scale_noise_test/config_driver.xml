@@ -1,0 +1,10 @@
+<driver_script name="run.py">
+	<case name="simulation">
+		<step executable="./run.py" quiet="true" pre_message=" * Running simulation" post_message=" - Complete"/>
+	</case>
+	<validation>
+		<compare_fields file1="simulation/output.nc">
+			<template file="prognostic_comparison.xml" path_base="script_core_dir" path="templates/validations"/>
+		</compare_fields>
+	</validation>
+</driver_script>
