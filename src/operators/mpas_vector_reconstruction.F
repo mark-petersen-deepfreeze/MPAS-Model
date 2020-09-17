@@ -26,11 +26,16 @@ module mpas_vector_reconstruction
 
   implicit none
 
-  public :: mpas_init_reconstruct, mpas_reconstruct
+  public :: mpas_init_reconstruct, mpas_reconstruct, mpas_reconstruct_sphere
 
   interface mpas_reconstruct
      module procedure mpas_reconstruct_1d
      module procedure mpas_reconstruct_2d
+  end interface
+
+  interface mpas_reconstruct_sphere
+     module procedure mpas_reconstruct_sphere_1d
+     module procedure mpas_reconstruct_sphere_2d
   end interface
 
   contains
@@ -406,6 +411,184 @@ module mpas_vector_reconstruction
     end if
 
   end subroutine mpas_reconstruct_1d!}}}
+
+!***********************************************************************
+!
+!  routine mpas_reconstruct_sphere_2d
+!
+!> \brief   2d MPAS Vector reconstruction routine
+!> \author  Xylar Asay-Davis, Todd Ringler
+!> \date    03/28/13
+!> \details 
+!>  Purpose: reconstruct vector field at cell centers based on radial basis functions
+!>  Input: grid meta data and vector component data residing at cell edges
+!>  Output: reconstructed vector field (measured in zonal and meridional) located at cell centers
+!-----------------------------------------------------------------------
+  subroutine mpas_reconstruct_sphere_2d(meshPool, u, uReconstructZonal, uReconstructMeridional, includeHalos)!{{{
+
+    implicit none
+
+    type (mpas_pool_type), intent(in) :: meshPool !< Input: Mesh information
+    real (kind=RKIND), dimension(:,:), intent(in) :: u !< Input: Velocity field on edges
+    real (kind=RKIND), dimension(:,:), intent(out) :: uReconstructZonal !< Output: Zonal Component of velocity reconstructed to cell centers
+    real (kind=RKIND), dimension(:,:), intent(out) :: uReconstructMeridional !< Output: Meridional Component of velocity reconstructed to cell centers
+    logical, optional, intent(in) :: includeHalos !< Input: Optional logical that allows reconstruction over halo regions
+
+    !   temporary arrays needed in the compute procedure
+    logical :: includeHalosLocal
+    integer, pointer :: nCells
+    integer, dimension(:,:), pointer :: edgesOnCell
+    integer, dimension(:), pointer :: nEdgesOnCell
+    integer :: iCell,iEdge, i, k, nVertLevels
+    real(kind=RKIND), dimension(:), pointer :: latCell, lonCell
+
+    real (kind=RKIND), dimension(:,:,:), pointer :: coeffs_reconstruct
+
+    logical, pointer :: on_a_sphere
+
+    real (kind=RKIND) :: clat, slat, clon, slon
+    real (kind=RKIND) :: uReconstructX, uReconstructY, uReconstructZ
+
+    if ( present(includeHalos) ) then
+       includeHalosLocal = includeHalos
+    else
+       includeHalosLocal = .false.
+    end if
+
+    ! stored arrays used during compute procedure
+    call mpas_pool_get_array(meshPool, 'coeffs_reconstruct', coeffs_reconstruct)
+
+    ! temporary variables
+    call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
+    call mpas_pool_get_array(meshPool, 'edgesOnCell', edgesOnCell)
+
+    if ( includeHalosLocal ) then
+       call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
+    else
+       call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCells)
+    end if
+
+    call mpas_pool_get_array(meshPool, 'latCell', latCell)
+    call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
+
+    call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
+    nVertLevels = size(u, 1)
+
+    !$omp do schedule(runtime)
+    do iCell = 1, nCells
+       clat = cos(latCell(iCell))
+       slat = sin(latCell(iCell))
+       clon = cos(lonCell(iCell))
+       slon = sin(lonCell(iCell))
+       do k = 1, nVertLevels
+          uReconstructX = 0.0
+          uReconstructY = 0.0
+          uReconstructZ = 0.0
+          do i=1,nEdgesOnCell(iCell)
+             iEdge = edgesOnCell(i,iCell)
+             uReconstructX = uReconstructX + coeffs_reconstruct(1,i,iCell) * u(k,iEdge)
+             uReconstructY = uReconstructY + coeffs_reconstruct(2,i,iCell) * u(k,iEdge)
+             uReconstructZ = uReconstructZ + coeffs_reconstruct(3,i,iCell) * u(k,iEdge)
+          end do
+          uReconstructZonal(k,iCell) = -uReconstructX*slon + &
+                                        uReconstructY*clon
+          uReconstructMeridional(k,iCell) = -(uReconstructX*clon       &
+                                            + uReconstructY*slon)*slat &
+                                            + uReconstructZ*clat
+       end do
+    end do
+    !$omp end do
+
+  end subroutine mpas_reconstruct_sphere_2d!}}}
+
+
+!***********************************************************************
+!
+!  routine mpas_reconstruct_sphere_1d
+!
+!> \brief   1d MPAS Vector reconstruction routine
+!> \author  Xylar Asay-Davis, Todd Ringler, Matt Hoffman
+!> \date    03/28/13
+!> \details 
+!>  Purpose: reconstruct vector field at cell centers based on radial basis functions
+!>  Input: grid meta data and vector component data residing at cell edges
+!>  Output: reconstructed vector field (measured in zonal and meridional) located at cell centers
+!-----------------------------------------------------------------------
+  subroutine mpas_reconstruct_sphere_1d(meshPool, u, uReconstructZonal, uReconstructMeridional, includeHalos)!{{{
+
+    implicit none
+
+    type (mpas_pool_type), intent(in) :: meshPool !< Input: Mesh information
+    real (kind=RKIND), dimension(:), intent(in) :: u !< Input: Velocity field on edges
+    real (kind=RKIND), dimension(:), intent(out) :: uReconstructZonal !< Output: Zonal Component of velocity reconstructed to cell centers
+    real (kind=RKIND), dimension(:), intent(out) :: uReconstructMeridional !< Output: Meridional Component of velocity reconstructed to cell centers
+    logical, optional, intent(in) :: includeHalos !< Input: Logical flag that allows reconstructing over halo regions
+
+    !   temporary arrays needed in the compute procedure
+    integer, pointer :: nCells
+    integer, dimension(:,:), pointer :: edgesOnCell
+    integer, dimension(:), pointer :: nEdgesOnCell
+    integer :: iCell,iEdge, i
+    real(kind=RKIND), dimension(:), pointer :: latCell, lonCell
+
+    real (kind=RKIND), dimension(:,:,:), pointer :: coeffs_reconstruct
+
+    logical, pointer :: on_a_sphere
+    logical :: includeHalosLocal
+
+    real (kind=RKIND) :: clat, slat, clon, slon
+    real (kind=RKIND) :: uReconstructX, uReconstructY, uReconstructZ
+
+    if ( present(includeHalos) ) then
+       includeHalosLocal = includeHalos
+    else
+       includeHalosLocal = .false.
+    end if
+
+    ! stored arrays used during compute procedure
+    call mpas_pool_get_array(meshPool, 'coeffs_reconstruct', coeffs_reconstruct)
+
+    ! temporary variables
+    call mpas_pool_get_array(meshPool, 'nEdgesOnCell', nEdgesOnCell)
+    call mpas_pool_get_array(meshPool, 'edgesOnCell', edgesOnCell)
+
+    if ( includeHalosLocal ) then
+       call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
+    else
+       call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCells)
+    end if
+
+    call mpas_pool_get_array(meshPool, 'latCell', latCell)
+    call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
+
+    call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
+
+    !$omp do schedule(runtime)
+    do iCell = 1, nCells
+       clat = cos(latCell(iCell))
+       slat = sin(latCell(iCell))
+       clon = cos(lonCell(iCell))
+       slon = sin(lonCell(iCell))
+
+       uReconstructX = 0.0
+       uReconstructY = 0.0
+       uReconstructZ = 0.0
+
+       do i=1,nEdgesOnCell(iCell)
+          iEdge = edgesOnCell(i,iCell)
+          uReconstructX = uReconstructX + coeffs_reconstruct(1,i,iCell) * u(iEdge)
+          uReconstructY = uReconstructY + coeffs_reconstruct(2,i,iCell) * u(iEdge)
+          uReconstructZ = uReconstructZ + coeffs_reconstruct(3,i,iCell) * u(iEdge)
+       end do
+       uReconstructZonal(iCell) = -uReconstructX*slon + &
+                                   uReconstructY*clon
+       uReconstructMeridional(iCell) = -(uReconstructX*clon       &
+                                       + uReconstructY*slon)*slat &
+                                       + uReconstructZ*clat
+    end do
+    !$omp end do
+
+  end subroutine mpas_reconstruct_sphere_1d!}}}
 
 end module mpas_vector_reconstruction
 
