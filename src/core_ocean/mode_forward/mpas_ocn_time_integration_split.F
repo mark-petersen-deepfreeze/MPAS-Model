@@ -113,7 +113,7 @@ module ocn_time_integration_split
       integer, dimension(:), allocatable :: n_bcl_iter
       type (block_type), pointer :: block
       real (kind=RKIND) :: normalThicknessFluxSum, thicknessSum, flux, sshEdge, hEdge1, &
-                 CoriolisTerm, temp, temp_h, coef, barotropicThicknessFlux_coeff, sshCell1, sshCell2
+                 CoriolisTerm, temp, temp_h, coef, barotropicThicknessFlux_coeff, sshCell1, sshCell2, btrTemp
       integer :: err
       real (kind=RKIND), dimension(:,:), pointer :: &
                  vertViscTopOfEdge, vertDiffTopOfCell
@@ -150,6 +150,7 @@ module ocn_time_integration_split
       real (kind=RKIND), pointer :: config_mom_del4, config_btr_gam1_velWt1, config_btr_gam2_SSHWt1
       real (kind=RKIND), pointer :: config_btr_gam3_velWt2
       real (kind=RKIND), pointer :: config_self_attraction_and_loading_beta
+      real (kind=RKIND), pointer :: config_implicit_bottom_drag_coeff
 
       ! Dimensions
       integer :: nCells, nEdges
@@ -271,6 +272,7 @@ module ocn_time_integration_split
       call mpas_pool_get_config(domain % configs, 'config_compute_active_tracer_budgets', config_compute_active_tracer_budgets)
       call mpas_pool_get_config(domain % configs, 'config_reset_debugTracers_near_surface', config_reset_debugTracers_near_surface)
       call mpas_pool_get_config(domain % configs, 'config_reset_debugTracers_top_nLayers', config_reset_debugTracers_top_nLayers)
+      call mpas_pool_get_config(domain % configs, 'config_implicit_bottom_drag_coeff', config_implicit_bottom_drag_coeff)
       allocate(n_bcl_iter(config_n_ts_iter))
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -334,6 +336,7 @@ module ocn_time_integration_split
                normalBarotropicVelocityCur(iEdge) = normalBarotropicVelocityCur(iEdge) + normalVelocityCur(k,iEdge) * layerThicknessEdge(k,iEdge)
             enddo
             normalBarotropicVelocityCur(iEdge) = normalBarotropicVelocityCur(iEdge) / thicknessSum
+            normalBarotropicVelocityNew(iEdge) = normalBarotropicVelocityCur(iEdge)
 
             ! Compute baroclinic component
             do k = 1, nVertLevels !maxLevelEdgeTop % array(iEdge)
@@ -594,11 +597,15 @@ module ocn_time_integration_split
 
                !$omp parallel
                !$omp do schedule(runtime) &
-               !$omp private(cell1, cell2, uTemp, k, normalThicknessFluxSum, thicknessSum)
+               !$omp private(cell1, cell2, uTemp, k, normalThicknessFluxSum, thicknessSum, btrTemp)
                do iEdge = 1, nEdges
                   cell1 = cellsOnEdge(1,iEdge)
                   cell2 = cellsOnEdge(2,iEdge)
 
+                  btrTemp = split * ( &
+                            gravity * (  sshNew(cell2) - sshNew(cell1) ) / dcEdge(iEdge) &
+                            + config_implicit_bottom_drag_coeff * &
+                              normalBarotropicVelocityNew(iEdge)*abs(normalBarotropicVelocityNew(iEdge) ))
                   uTemp = 0.0_RKIND  ! could put this after with uTemp(maxleveledgetop+1:nvertlevels)=0
                   do k = 1, maxLevelEdgeTop(iEdge)
 
@@ -606,10 +613,9 @@ module ocn_time_integration_split
                      !                             + T(u*,w*,p*) + g*grad(SSH*) )
                      ! Here uNew is a work variable containing -fEdge(iEdge)*normalBaroclinicVelocityPerp(k,iEdge)
                       uTemp(k) = normalBaroclinicVelocityCur(k,iEdge) &
-                         + dt * (normalVelocityTend(k,iEdge) &
+                         + dt * ( normalVelocityTend(k,iEdge) &
                          + normalVelocityNew(k,iEdge) &  ! this is f*normalBaroclinicVelocity^{perp}
-                         + split * gravity * (  sshNew(cell2) - sshNew(cell1) ) &
-                          / dcEdge(iEdge) )
+                         + btrTemp )
                   enddo
 
                   ! thicknessSum is initialized outside the loop because on land boundaries
@@ -884,12 +890,16 @@ module ocn_time_integration_split
                                           * normalBarotropicVelocitySubcycleCur(eoe) * fEdge(eoe)
                           end do
 
+                          ! normalBarotropicVelocityNew = normalBarotropicVelocityOld + dt/J*(-f*normalBarotropicVelocityoldPerp
+                          !                             - g*grad(SSH) -c*u*|u|+ G)
                           normalBarotropicVelocitySubcycleNew(iEdge) &
                             = temp_mask &
-                            * (normalBarotropicVelocitySubcycleCur(iEdge) &
-                            + dt / nBtrSubcycles * (CoriolisTerm - gravity &
-                            * (sshSubcycleCur(cell2) - sshSubcycleCur(cell1) ) &
-                            / dcEdge(iEdge) + barotropicForcing(iEdge)))
+                            * (normalBarotropicVelocitySubcycleCur(iEdge) + dt / nBtrSubcycles * ( &
+                              CoriolisTerm &
+                            - gravity * (sshSubcycleCur(cell2) - sshSubcycleCur(cell1) ) / dcEdge(iEdge) &
+                            - config_implicit_bottom_drag_coeff &
+                              * normalBarotropicVelocitySubcycleCur(iEdge)*abs(normalBarotropicVelocitySubcycleCur(iEdge)) &
+                            + barotropicForcing(iEdge) ) )
 
                      end do
                      !$omp end do
@@ -1134,12 +1144,15 @@ module ocn_time_integration_split
                                   + config_btr_gam2_SSHWt1 * sshSubcycleNew(cell2)
 
                        ! normalBarotropicVelocityNew = normalBarotropicVelocityOld + dt/J*(-f*normalBarotropicVelocityoldPerp
-                       !                             - g*grad(SSH) + G)
-                       normalBarotropicVelocitySubcycleNew(iEdge) = temp_mask &
-                            * (normalBarotropicVelocitySubcycleCur(iEdge) &
-                            + dt / nBtrSubcycles &
-                            * (CoriolisTerm - gravity * (sshCell2 - sshCell1) / dcEdge(iEdge) &
-                            + barotropicForcing(iEdge)))
+                       !                             - g*grad(SSH) -c*u*|u|+ G)
+                       normalBarotropicVelocitySubcycleNew(iEdge) &
+                            = temp_mask &
+                            * (normalBarotropicVelocitySubcycleCur(iEdge) + dt / nBtrSubcycles * ( &
+                              CoriolisTerm &
+                            - gravity * (sshSubcycleCur(cell2) - sshSubcycleCur(cell1) ) / dcEdge(iEdge) &
+                            - config_implicit_bottom_drag_coeff &
+                              * btrvel_temp(iEdge)*abs(btrvel_temp(iEdge)) &
+                            + barotropicForcing(iEdge) ) )
 
                    end do
                    !$omp end do
