@@ -352,10 +352,18 @@
 		<var name="edgesOnVertex"                     type="integer"  dimensions="vertexDegree nVertices"/>
 		<var name="cellsOnVertex"                     type="integer"  dimensions="vertexDegree nVertices"/>
 		<var name="kiteAreasOnVertex"                 type="real"     dimensions="vertexDegree nVertices"/>
-                <var name="areaPV"                            type="real"     dimensions="nVertices nCells"/>
-                <var name="areaHEdge"                         type="real"     dimensions="nEdges nCells"/>
-                <var name="cell3HEdge"                        type="integer"  dimensions="nEdges"/>
-                <var name="tArea"                             type="real"     dimensions="nEdges"/>
+        
+		<var name="areaPV"                            type="real"     dimensions="vertexDegree nVertices"/>
+        in the code: areaPV( cellsOnVertex(i, iVertex) , iVertex) where i = {1,2,3}
+		<var name="areaEdge"                          type="real"     dimensions="vertexDegree nEdges"/>
+        in the code: areaEdge( 1, iEdge)   for cell cellsOnEdge(1, iEdge)
+        in the code: areaEdge( 2, iEdge)   for cell cellsOnEdge(2, iEdge)
+        in the code: areaEdge( 3, iEdge)   for cell cell3HEdge(iEdge)
+		<var name="cell3HEdge"                        type="integer"  dimensions="nEdges"/>
+		<var name="vertex3HEdge"                      type="integer"  dimensions="nEdges"/> (vertex index)
+remove:		<var name="tArea"                             type="real"     dimensions="nEdges"/>
+        substitute with areaTriangle(vertex3HEdge(iEdge))  if vertex3HEdge is the vertex index
+        substitute with areaTriangle(verticesOnEdge(vertex3HEdge(iEdge)),iEdge)  if vertex3HEdge is 1 or 2
 		<var name="fEdge"                             type="real"     dimensions="nEdges"/>
 		<var name="fVertex"                           type="real"     dimensions="nVertices"/>
 		<var name="fCell"                             type="real"     dimensions="nCells"/>
