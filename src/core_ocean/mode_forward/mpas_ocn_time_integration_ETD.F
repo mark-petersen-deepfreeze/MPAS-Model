@@ -158,9 +158,9 @@ module ocn_time_integration_ETD
 
       CFL_pow = 20  
       vertOrder = 2
-      coef3rdOrder = 0.0 !0.25
+      coef3rdOrder = 0.0_RKIND !0.25
       !eddyDiff2 = 10.0 
-      eddyDiff2 = 0.0001
+      eddyDiff2 = 0.0001_RKIND
 
       print*, 'dt ', dt
 
@@ -323,7 +323,7 @@ module ocn_time_integration_ETD
          do iTracer = 1, num_tracers 
             do iCell = 1, nCells 
                Nlayers = maxLevelCell(iCell)
-               phi1J(:,:) = 0.0
+               phi1J(:,:) = 0.0_RKIND
                rhs(:) = TracerGroupTend(iTracer, :, iCell)
                tracer_cur(:) = tracerGroup(iTracer, :, iCell)
                tracer_cur(:) = tracer_cur(:) * layerThickness(:,iCell)
@@ -335,7 +335,7 @@ module ocn_time_integration_ETD
                !end do 
                phi1JTot(iCell,:,:) = phi1J(:,:) 
              
-               CALL DGEMM('N','N',NLayers,1,NLayers,dt,phi1J,Nlayers,rhs,NLayers,1.0,tracer_cur,NLayers) 
+               CALL DGEMM('N','N',NLayers,1,NLayers,dt,phi1J,Nlayers,rhs,NLayers,1.0_RKIND,tracer_cur,NLayers) 
                do k = 1, Nlayers               
                   if (layerThickness(k,iCell)==0.0) then 
                      tracerGroup(iTracer, k, iCell) = -1e+34
@@ -426,7 +426,7 @@ module ocn_time_integration_ETD
          do iCell = 1, nCells
             TracerGroupTend(:,:, iCell) = 0.0_RKIND 
          end do
-         rhs(:) = 0.0
+         rhs(:) = 0.0_RKIND
 
          !Halo update for pv_edge
          call mpas_dmpar_field_halo_exch(domain, 'normalizedRelativeVorticityEdge')
@@ -454,7 +454,7 @@ module ocn_time_integration_ETD
                   rhs(k) = horiz_1stage(k) - horiz(k)
                end do 
             
-               CALL DGEMM('N','N',NLayers,1,NLayers,0.5*dt,phi1J,Nlayers,rhs,NLayers,1.0,tracer_cur,NLayers)
+               CALL DGEMM('N','N',NLayers,1,NLayers,0.5_RKIND*dt,phi1J,Nlayers,rhs,NLayers,1.0_RKIND,tracer_cur,NLayers)
                do k = 1, Nlayers               
                   if (layerThickness(k,iCell)==0.0) then 
                      tracerGroup(iTracer, k, iCell) = -1e+34
@@ -977,8 +977,8 @@ module ocn_time_integration_ETD
       allocate(JacVertDiff(N,N))
       allocate(JacVert(N,N))
 
-      JacVertAdv(:,:) = 0.0
-      JacVertDiff(:,:) = 0.0 
+      JacVertAdv(:,:) = 0.0_RKIND
+      JacVertDiff(:,:) = 0.0_RKIND
 
       JacVertAdv(1,1) = w(2,iCell) * layerThickness(2, iCell) / (layerThickness(2, iCell) + layerThickness(1, iCell)) 
       JacVertAdv(1,2) = w(2,iCell) * layerThickness(1, iCell) / (layerThickness(2, iCell) + layerThickness(1, iCell))
@@ -1055,15 +1055,15 @@ module ocn_time_integration_ETD
 
       !allocate(A(4,4), Temp(4,4), Temp2(4,4), Id(4,4))
 
-      real (kind=RKIND) :: power = 0.5
+      real (kind=RKIND) :: power = 0.5_RKIND
       integer :: k1, k2
 
       call mpas_pool_get_array(ETDPool, 'JacZ', Jac)
 
-      phi1A(:,:)=0
-      Temp(:,:)=0
-      Temp2(:,:)=0
-      Id(:,:)=0
+      phi1A(:,:)=0.0_RKIND
+      Temp(:,:)=0.0_RKIND
+      Temp2(:,:)=0.0_RKIND
+      Id(:,:)=0.0_RKIND
 
       !print*, 'CFL_pow', CFL_pow
 
@@ -1071,7 +1071,7 @@ module ocn_time_integration_ETD
          phi1A(k1,k1)=1
          Id(k1,k1)=1
          do k2 = 1, NLayers
-           A(k1,k2) = (dt/(2**CFL_pow))*Jac((k2-1)*NLayers+k1)
+           A(k1,k2) = (dt/(2.0_RKIND**CFL_pow))*Jac((k2-1)*NLayers+k1)
          end do
       end do
 
@@ -1082,29 +1082,29 @@ module ocn_time_integration_ETD
       !print*, '-------------------------'
       !to remove
 
-      CALL DGEMM('N','N',NLayers,NLayers,NLayers,1.0,A,Nlayers,A,NLayers,0.0,Temp,Nlayers) !A^2
-      CALL DGEMM('N','N',NLayers,NLayers,NLayers,1.0,A,Nlayers,Temp,NLayers,0.0,Temp2,Nlayers) !A^3
-      CALL DGEMM('N','N',NLayers,NLayers,NLayers,0.5,A,Nlayers,Id,NLayers,1.0,phi1A,Nlayers) !I+1/2A
-      CALL DGEMM('N','N',NLayers,NLayers,NLayers,1./6.,Temp,Nlayers,Id,NLayers,1.0,phi1A,Nlayers) !I+1/2A+1/6A^2
-      CALL DGEMM('N','N',NLayers,NLayers,NLayers,1./24.,Temp2,Nlayers,Id,NLayers,1.0,phi1A,Nlayers) !I+1/2A+1/6A^2+1/24A^3
+      CALL DGEMM('N','N',NLayers,NLayers,NLayers,1.0_RKIND,A,Nlayers,A,NLayers,0.0_RKIND,Temp,Nlayers) !A^2
+      CALL DGEMM('N','N',NLayers,NLayers,NLayers,1.0_RKIND,A,Nlayers,Temp,NLayers,0.0_RKIND,Temp2,Nlayers) !A^3
+      CALL DGEMM('N','N',NLayers,NLayers,NLayers,0.5_RKIND,A,Nlayers,Id,NLayers,1.0_RKIND,phi1A,Nlayers) !I+1/2A
+      CALL DGEMM('N','N',NLayers,NLayers,NLayers,1./6._RKIND,Temp,Nlayers,Id,NLayers,1.0_RKIND,phi1A,Nlayers) !I+1/2A+1/6A^2
+      CALL DGEMM('N','N',NLayers,NLayers,NLayers,1./24._RKIND,Temp2,Nlayers,Id,NLayers,1.0_RKIND,phi1A,Nlayers) !I+1/2A+1/6A^2+1/24A^3
 
       do k1 = 1, CFL_pow
-         Temp(:,:)=0
-         Temp2(:,:)=0
-         CALL DGEMM('N','N',NLayers,NLayers,NLayers,1.0,phi1A,Nlayers,phi1A,NLayers,0.0,Temp,Nlayers) !phi1A^2
-         CALL DGEMM('N','N',NLayers,NLayers,NLayers,1.0,A,Nlayers,Temp,NLayers,0.0,Temp2,Nlayers) !A*phi1A^2
+         Temp(:,:)=0.0_RKIND
+         Temp2(:,:)=0.0_RKIND
+         CALL DGEMM('N','N',NLayers,NLayers,NLayers,1.0_RKIND,phi1A,Nlayers,phi1A,NLayers,0.0_RKIND,Temp,Nlayers) !phi1A^2
+         CALL DGEMM('N','N',NLayers,NLayers,NLayers,1.0_RKIND,A,Nlayers,Temp,NLayers,0.0_RKIND,Temp2,Nlayers) !A*phi1A^2
          if (k1==1) then
-            power = 0.5
+            power = 0.5_RKIND
          elseif (k1==2) then
-            power = 1.0
+            power = 1.0_RKIND
          elseif (k1>2) then
-           power = 2**(k1-2)
+           power = 2.0_RKIND**(k1-2)
          end if
          !to remove
          !print*,power
          !print*, '---------do-power------------'
          !to remove
-         CALL DGEMM('N','N',NLayers,NLayers,NLayers,power,Temp2,Nlayers,Id,NLayers,1.0,phi1A,Nlayers) !phi1A + 2^(k1-1)*A*phi1A^2
+         CALL DGEMM('N','N',NLayers,NLayers,NLayers,power,Temp2,Nlayers,Id,NLayers,1.0_RKIND,phi1A,Nlayers) !phi1A + 2^(k1-1)*A*phi1A^2
          !to remove
          !do k2=1, NLayers
                !print*,phi1A(k2,1),phi1A(k2,2),phi1A(k2,3),phi1A(k2,4)

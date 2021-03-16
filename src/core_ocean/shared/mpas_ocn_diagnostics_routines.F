@@ -250,6 +250,11 @@ contains
          xEdgeMid(iEdge) = (xEdgeMidPlanar(iEdge)/length)*radius
          yEdgeMid(iEdge) = (yEdgeMidPlanar(iEdge)/length)*radius
          zEdgeMid(iEdge) = (zEdgeMidPlanar(iEdge)/length)*radius
+         if (planarMesh) then
+           xEdgeMid(iEdge) = xEdgeMidPlanar(iEdge)
+           yEdgeMid(iEdge) = yEdgeMidPlanar(iEdge)
+           zEdgeMid(iEdge) = zEdgeMidPlanar(iEdge)   
+         end if 
 
       end do
 
@@ -440,70 +445,77 @@ contains
 
       radius1 = 6371220.0
 
-      !print*, size(nEdgesArray)
-      !print*, nEdgesArray(1), nEdgesArray(2), nEdgesArray(3), nEdgesArray(4), nEdgesArray(5)
-      do iEdge = 1, nEdgesArray(5)
-         cell1 = cellsOnEdge(1,iEdge)
-         cell2 = cellsOnEdge(2,iEdge) 
-         vertex1 = verticesOnEdge(1,iEdge)
-         vertex2 = verticesOnEdge(2,iEdge)
-         laVertex1 = latVertex(vertex1)
-         loVertex1 = lonVertex(vertex1)
-         laVertex2 = latVertex(vertex2)
-         loVertex2 = lonVertex(vertex2)
-         laEdge = latEdge(iEdge)
-         loEdge = lonEdge(iEdge)
-         a = sphere_distance(laVertex1, loVertex1, laEdge, loEdge, radius1)
-         b = sphere_distance(laVertex2, loVertex2, laEdge, loEdge, radius1)
-         !print*, 'a ', a, 'b ', b, 'abs(a-b) ', abs(a-b)
-         if (latCell(cell2)==0.0 .AND. lonCell(cell2)==0.0) then
-            cell3HEdge(iEdge) = 0
-            !print*, iEdge
-         elseif (abs(a-b)<1.E-2) then
-         !if (abs(a-b)<1.E-9) then
-            areaHEdge(1,iEdge) = 0.5
-            areaHEdge(2,iEdge) = 0.5
-            areaHEdge(3,iEdge) = 0.0
-            !print*, 'mid triangle = mid voronoi' 
-         else
-            if (a<b) then
-               triangleCenter = vertex2
-            else
-               triangleCenter = vertex1
-            end if
-            do i = 1, vertexDegree
-               cellNew = cellsOnVertex(i, triangleCenter)
-               if ((cell1.NE.cellNew) .AND. (cell2.NE.cellNew)) then
-                  cell3 = cellNew
-                  cell3HEdge(iEdge) = cell3
-               end if
-            end do
-            if (latCell(cell3)==0.0 .AND. lonCell(cell3)==0.0) then 
+      if (planarMesh) then 
+         do iEdge = 1, nEdgesArray(5)
+            cell1 = cellsOnEdge(1,iEdge)
+            cell2 = cellsOnEdge(2,iEdge)
+            a = planar_distance()
+            b = planar_distance()
+         end do 
+      else
+         do iEdge = 1, nEdgesArray(5)
+            cell1 = cellsOnEdge(1,iEdge)
+            cell2 = cellsOnEdge(2,iEdge) 
+            vertex1 = verticesOnEdge(1,iEdge)
+            vertex2 = verticesOnEdge(2,iEdge)
+            laVertex1 = latVertex(vertex1)
+            loVertex1 = lonVertex(vertex1)
+            laVertex2 = latVertex(vertex2)
+            loVertex2 = lonVertex(vertex2)
+            laEdge = latEdge(iEdge)
+            loEdge = lonEdge(iEdge)
+            a = sphere_distance(laVertex1, loVertex1, laEdge, loEdge, radius1)
+            b = sphere_distance(laVertex2, loVertex2, laEdge, loEdge, radius1)
+            !print*, 'a ', a, 'b ', b, 'abs(a-b) ', abs(a-b)
+            if (latCell(cell2)==0.0 .AND. lonCell(cell2)==0.0) then
                cell3HEdge(iEdge) = 0
-            else 
-               !print*, 'cell1, cell2, cell3', cell1, cell2, cell3 
-               triangleHEdge(iEdge) = triangleCenter
-               laEdgeMidVoronoi = latEdgeMid(iEdge)
-               loEdgeMidVoronoi = lonEdgeMid(iEdge)
-               !print*, 'print mid point voronoi and triangle',
-               !laEdgeMidVoronoi, laEdge, loEdgeMidVoronoi, loEdge
-               !print*, 'difference mid point voronoi e triangle',
-               !abs(laEdgeMidVoronoi-laEdge), abs(loEdgeMidVoronoi-loEdge) 
-               laCell1 = latCell(cell1)
-               loCell1 = lonCell(cell1)
-               laCell2 = latCell(cell2)
-               loCell2 = lonCell(cell2)
-               laCell3 = latCell(cell3)
-               loCell3 = lonCell(cell3)
-               areaHEdge(1,iEdge) = sphericalTriangleArea(laCell2, loCell2, laCell3, loCell3, laEdgeMidVoronoi, loEdgeMidVoronoi) 
-               areaHEdge(2,iEdge) = sphericalTriangleArea(laCell1, loCell1, laCell3, loCell3, laEdgeMidVoronoi, loEdgeMidVoronoi) 
-               areaHEdge(3,iEdge) = sphericalTriangleArea(laCell1, loCell1, laCell2, loCell2, laEdgeMidVoronoi, loEdgeMidVoronoi) 
-            end if 
-         end if
-         !print*, iEdge, 'v1 ', vertex1, 'v2 ', vertex2 
-         !print*, 'cell2 ', cell2
-         !print*, '---------------'
-      end do
+               !print*, iEdge
+            elseif (abs(a-b)<1.E-2) then
+            !if (abs(a-b)<1.E-9) then
+               areaHEdge(1,iEdge) = 0.5
+               areaHEdge(2,iEdge) = 0.5
+               areaHEdge(3,iEdge) = 0.0
+               !print*, 'mid triangle = mid voronoi' 
+            else
+               if (a<b) then
+                  triangleCenter = vertex2
+               else
+                  triangleCenter = vertex1
+               end if
+               do i = 1, vertexDegree
+                  cellNew = cellsOnVertex(i, triangleCenter)
+                  if ((cell1.NE.cellNew) .AND. (cell2.NE.cellNew)) then
+                     cell3 = cellNew
+                     cell3HEdge(iEdge) = cell3
+                  end if
+               end do
+               if (latCell(cell3)==0.0 .AND. lonCell(cell3)==0.0) then 
+                  cell3HEdge(iEdge) = 0
+               else 
+                  !print*, 'cell1, cell2, cell3', cell1, cell2, cell3 
+                  triangleHEdge(iEdge) = triangleCenter
+                  laEdgeMidVoronoi = latEdgeMid(iEdge)
+                  loEdgeMidVoronoi = lonEdgeMid(iEdge)
+                  !print*, 'print mid point voronoi and triangle',
+                  !laEdgeMidVoronoi, laEdge, loEdgeMidVoronoi, loEdge
+                  !print*, 'difference mid point voronoi e triangle',
+                  !abs(laEdgeMidVoronoi-laEdge), abs(loEdgeMidVoronoi-loEdge) 
+                  laCell1 = latCell(cell1)
+                  loCell1 = lonCell(cell1)
+                  laCell2 = latCell(cell2)
+                  loCell2 = lonCell(cell2)
+                  laCell3 = latCell(cell3)
+                  loCell3 = lonCell(cell3)
+                  areaHEdge(1,iEdge) = sphericalTriangleArea(laCell2, loCell2, laCell3, loCell3, laEdgeMidVoronoi, loEdgeMidVoronoi) 
+                  areaHEdge(2,iEdge) = sphericalTriangleArea(laCell1, loCell1, laCell3, loCell3, laEdgeMidVoronoi, loEdgeMidVoronoi) 
+                  areaHEdge(3,iEdge) = sphericalTriangleArea(laCell1, loCell1, laCell2, loCell2, laEdgeMidVoronoi, loEdgeMidVoronoi) 
+               end if 
+            end if
+            !print*, iEdge, 'v1 ', vertex1, 'v2 ', vertex2 
+            !print*, 'cell2 ', cell2
+            !print*, '---------------'
+         end do
+      end if 
       print*, 'sono in weightsHEDGE '
 
    end subroutine weightsHEDGE
@@ -573,14 +585,14 @@ contains
       real (kind=RKIND), intent(in) :: laEdge, loEdge, laVertex, loVertex, laCell, loCell
       real (kind=RKIND) :: tanqe, s, a, b, c, radius, one
       radius = 6371220.0
-      one = 1.0
+      one = 1.0_RKIND
 
       a = sphere_distance(laCell, loCell, laVertex, loVertex, one)
       b = sphere_distance(laCell, loCell, laEdge, loEdge, one)
       c = sphere_distance(laEdge, loEdge, laVertex, loVertex, one)
-      s = 0.5*(a+b+c)
+      s = 0.5_RKIND*(a+b+c)
       
-      tanqe = sqrt(tan(0.5*s)*tan(0.5*(s-a))*tan(0.5*(s-b))*tan(0.5*(s-c)))
+      tanqe = sqrt(tan(0.5_RKIND*s)*tan(0.5_RKIND*(s-a))*tan(0.5_RKIND*(s-b))*tan(0.5_RKIND*(s-c)))
       sphericalTriangleArea = 4.*atan(tanqe)*radius**2
 
       !print*, 'printing a, b, c, s e tanqe', a, b, c, s, tanqe
@@ -600,11 +612,48 @@ contains
 
       real (kind=RKIND) :: arg1
 
-      arg1 = sqrt( sin(0.5*(lat2-lat1))**2 +  &
-                   cos(lat1)*cos(lat2)*sin(0.5*(lon2-lon1))**2 )
+      arg1 = sqrt( sin(0.5_RKIND*(lat2-lat1))**2 +  &
+                   cos(lat1)*cos(lat2)*sin(0.5_RKIND*(lon2-lon1))**2 )
       sphere_distance = 2.*radius*asin(arg1)
 
    end function sphere_distance
+
+   real function planarTriangleArea(x1, x2, x3, y1, y2, y3, z1, z2, z3)
+
+     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+     ! planarTriangleArea uses Heron's formula to compute the area of a triangle in a plane
+     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+     implicit none
+
+     real (kind=RKIND), intent(in) :: x1, x2, x3, y1, y2, y3, z1, z2, z3 
+     real (kind=RKIND) :: s, a, b, c
+
+     !Get side lengths
+     a = planar_distance(x1, x2, y1, y2, z1, z2);
+     b = planar_distance(x2, x3, y2, y3, z2, z3);
+     c = planar_distance(x1, x3, y1, y3, z1, z3);
+
+     !Semi-perimeter of TRI(ABC)
+     s = (a + b + c) * 0.5_RKIND;
+
+     planarTriangleArea = sqrt(s * (s - a) * (s - b) * (s - c));
+   
+   end function planarTriangleArea
+
+   real function planar_distance(x1, x2, y1, y2, z1, z2)
+
+     implicit none
+
+     real (kind=RKIND), intent(in) :: x1, x2, y1, y2, z1, z2
+     real (kind=RKIND) :: a, b, c
+
+     a = x1 - x2
+     b = y1 - y2
+     c = z1 - z2
+     planar_distance = sqrt(a**2+b**2+c**2)
+
+   end function planar_distance
 
 end module ocn_diagnostics_routines
 
