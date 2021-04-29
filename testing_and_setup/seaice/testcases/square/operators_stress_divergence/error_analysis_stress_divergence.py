@@ -134,55 +134,55 @@ def error_analysis_stress_divergence():
                 print("      %5i %-8s: % 20.15e % 20.15e" %(iTerm, terms[iTerm], dfdx[iTerm], dfdy[iTerm]))
                 fileout.write("      %5i %-8s: % 20.15e % 20.15e\n" %(iTerm, terms[iTerm], dfdx[iTerm], dfdy[iTerm]))
 
-        # weak
-        print("  Weak:")
-        fileout.write("  Weak:\n")
-        iVertexTest = 1123
+        ## weak
+        #print("  Weak:")
+        #fileout.write("  Weak:\n")
+        #iVertexTest = 1123
 
-        # weak
-        filein = Dataset("./output_%s_weak_%s/output.2000.nc" %(gridType,grids[gridType]),"r")
+        ## weak
+        #filein = Dataset("./output_%s_weak_%s/output.2000.nc" %(gridType,grids[gridType]),"r")
 
-        normalVectorTriangle = filein.variables["normalVectorTriangle"][:]
+        #normalVectorTriangle = filein.variables["normalVectorTriangle"][:]
 
-        filein.close()
-
-
-        dfdx = np.zeros(nTerms) # ideal: (0,1,0,0,0,0)
-        dfdy = np.zeros(nTerms) # ideal: (0,0,1,0,0,0)
-
-        for iTerm in range(0,nTerms):
-
-            for iVertexDegree in range(0,vertexDegree):
-
-                # interpolated edge velocity
-                iEdge = edgesOnVertex[iVertexTest,iVertexDegree]
-
-                stressEdge = 0.0
-
-                for iCellOnEdge in range(0,2):
-
-                    iCell = cellsOnEdge[iEdge,iCellOnEdge]
-
-                    dx = xCell[iCell] - xVertex[iVertexTest]
-                    dy = yCell[iCell] - yVertex[iVertexTest]
-                    fTerm = coeff[iTerm] * pow(dx,dxPow[iTerm]) * pow(dy,dyPow[iTerm])
-
-                    stressEdge += fTerm
-
-                stressEdge *= 0.5
-
-                dfdx[iTerm] += (stressEdge * normalVectorTriangle[iVertexTest,iVertexDegree,0] * dcEdges[iEdge]) / areaTriangle[iVertexTest]
-                dfdy[iTerm] += (stressEdge * normalVectorTriangle[iVertexTest,iVertexDegree,1] * dcEdges[iEdge]) / areaTriangle[iVertexTest]
+        #filein.close()
 
 
+        #dfdx = np.zeros(nTerms) # ideal: (0,1,0,0,0,0)
+        #dfdy = np.zeros(nTerms) # ideal: (0,0,1,0,0,0)
 
-        print("          # Term       df/dx                  df/dy")
-        print("          ---------------------------------------------------------")
-        fileout.write("          # Term       df/dx                  df/dy\n")
-        fileout.write("          ---------------------------------------------------------\n")
-        for iTerm in range(0,nTerms):
-            print("      %5i %-8s: % 20.15e % 20.15e" %(iTerm, terms[iTerm], dfdx[iTerm], dfdy[iTerm]))
-            fileout.write("      %5i %-8s: % 20.15e % 20.15e\n" %(iTerm, terms[iTerm], dfdx[iTerm], dfdy[iTerm]))
+        #for iTerm in range(0,nTerms):
+
+        #    for iVertexDegree in range(0,vertexDegree):
+
+        #        # interpolated edge velocity
+        #        iEdge = edgesOnVertex[iVertexTest,iVertexDegree]
+
+        #        stressEdge = 0.0
+
+        #        for iCellOnEdge in range(0,2):
+
+        #            iCell = cellsOnEdge[iEdge,iCellOnEdge]
+
+        #            dx = xCell[iCell] - xVertex[iVertexTest]
+        #            dy = yCell[iCell] - yVertex[iVertexTest]
+        #            fTerm = coeff[iTerm] * pow(dx,dxPow[iTerm]) * pow(dy,dyPow[iTerm])
+
+        #            stressEdge += fTerm
+
+        #        stressEdge *= 0.5
+
+        #        dfdx[iTerm] += (stressEdge * normalVectorTriangle[iVertexTest,iVertexDegree,0] * dcEdges[iEdge]) / areaTriangle[iVertexTest]
+        #        dfdy[iTerm] += (stressEdge * normalVectorTriangle[iVertexTest,iVertexDegree,1] * dcEdges[iEdge]) / areaTriangle[iVertexTest]
+
+
+
+        #print("          # Term       df/dx                  df/dy")
+        #print("          ---------------------------------------------------------")
+        #fileout.write("          # Term       df/dx                  df/dy\n")
+        #fileout.write("          ---------------------------------------------------------\n")
+        #for iTerm in range(0,nTerms):
+        #    print("      %5i %-8s: % 20.15e % 20.15e" %(iTerm, terms[iTerm], dfdx[iTerm], dfdy[iTerm]))
+        #    fileout.write("      %5i %-8s: % 20.15e % 20.15e\n" %(iTerm, terms[iTerm], dfdx[iTerm], dfdy[iTerm]))
 
 
     fileout.close()
