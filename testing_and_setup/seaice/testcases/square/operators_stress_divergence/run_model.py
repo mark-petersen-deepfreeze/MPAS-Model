@@ -13,8 +13,8 @@ def run_model():
     if (MPAS_SEAICE_TESTCASES_RUN_COMMAND is None):
         MPAS_SEAICE_TESTCASES_RUN_COMMAND = ""
 
-    operatorMethods = ["wachspress","pwl","weak"]
-    #operatorMethods = ["wachspress","pwl"]
+    #operatorMethods = ["wachspress","pwl","weak"]
+    operatorMethods = ["wachspress","pwl"]
 
     gridTypes = ["hex","quad"]
     #gridTypes = ["hex"]
