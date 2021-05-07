@@ -117,7 +117,9 @@ contains
        integrationOrder)!{{{
 
     use seaice_mesh, only: &
-         seaice_cell_vertices_at_vertex
+         seaice_cell_vertices_at_vertex, &
+         seaice_cell_edges_at_edge, &
+         seaice_triangle_edges_at_edge
 
     use seaice_velocity_solver_variational_shared, only: &
          seaice_calc_local_coords, &
@@ -149,22 +151,31 @@ contains
          integrationOrder !< Input:
 
     integer, dimension(:,:), pointer :: &
-         cellVerticesAtVertex
+         cellVerticesAtVertex, &
+         cellEdgesAtEdge, &
+         triangleEdgesAtEdge
 
     real(kind=RKIND), dimension(:), pointer :: &
          tanLatVertexRotatedOverRadius, &
+         tanLatEdgeRotatedOverRadius, &
          variationalDenominator
 
     real(kind=RKIND), dimension(:,:,:), pointer :: &
          basisGradientU, &
          basisGradientV, &
+         basisGradientUTri, &
+         basisGradientVTri, &
          basisIntegralsMetric, &
          basisIntegralsU, &
-         basisIntegralsV
+         basisIntegralsV, &
+         basisIntegralsMetricTri, &
+         basisIntegralsUTri, &
+         basisIntegralsVTri
 
     integer, pointer :: &
          nCells, &
          nVertices, &
+         nEdges, &
          vertexDegree, &
          maxEdges
 
@@ -175,12 +186,18 @@ contains
     integer, dimension(:,:), pointer :: &
          verticesOnCell, &
          cellsOnVertex, &
-         edgesOnCell
+         edgesOnCell, &
+         cellsOnEdge, &
+         edgesOnVertex, &
+         verticesOnEdge
 
     real(kind=RKIND), dimension(:), pointer :: &
          xVertex, &
          yVertex, &
          zVertex, &
+         xEdge, &
+         yEdge, &
+         zEdge, &
          xCell, &
          yCell, &
          zCell, &
@@ -194,25 +211,40 @@ contains
     real(kind=RKIND), pointer :: &
          sphere_radius
 
+    integer, dimension(:), allocatable :: & !needed to use the existing refactored functions
+         nEdgesOnVertex
+
     real(kind=RKIND), dimension(:,:), allocatable :: &
          xLocal, &
-         yLocal
+         yLocal, &
+         xLocalTri, &
+         yLocalTri
+
+    integer :: &   !TODO: add to namelist
+         config_use_c_grid
 
     call MPAS_pool_get_config(mesh, "on_a_sphere", on_a_sphere)
     call MPAS_pool_get_config(mesh, "sphere_radius", sphere_radius)
 
     call MPAS_pool_get_dimension(mesh, "nCells", nCells)
     call MPAS_pool_get_dimension(mesh, "nVertices", nVertices)
+    call MPAS_pool_get_dimension(mesh, "nEdges", nEdges)
     call MPAS_pool_get_dimension(mesh, "vertexDegree", vertexDegree)
     call MPAS_pool_get_dimension(mesh, "maxEdges", maxEdges)
 
     call MPAS_pool_get_array(mesh, "nEdgesOnCell", nEdgesOnCell)
     call MPAS_pool_get_array(mesh, "verticesOnCell", verticesOnCell)
+    call MPAS_pool_get_array(mesh, "verticesOnEdge", verticesOnEdge)
     call MPAS_pool_get_array(mesh, "cellsOnVertex", cellsOnVertex)
     call MPAS_pool_get_array(mesh, "edgesOnCell", edgesOnCell)
+    call MPAS_pool_get_array(mesh, "edgesOnVertex", edgesOnVertex)
+    call MPAS_pool_get_array(mesh, "cellsOnEdge", cellsOnEdge)
     call MPAS_pool_get_array(mesh, "xVertex", xVertex)
     call MPAS_pool_get_array(mesh, "yVertex", yVertex)
     call MPAS_pool_get_array(mesh, "zVertex", zVertex)
+    call MPAS_pool_get_array(mesh, "xEdge", xEdge)
+    call MPAS_pool_get_array(mesh, "yEdge", yEdge)
+    call MPAS_pool_get_array(mesh, "zEdge", zEdge)
     call MPAS_pool_get_array(mesh, "xCell", xCell)
     call MPAS_pool_get_array(mesh, "yCell", yCell)
     call MPAS_pool_get_array(mesh, "zCell", zCell)
@@ -223,54 +255,131 @@ contains
     call MPAS_pool_get_array(boundary, "interiorVertex", interiorVertex)
 
     call MPAS_pool_get_array(velocity_variational, "cellVerticesAtVertex", cellVerticesAtVertex)
+    call MPAS_pool_get_array(velocity_variational, "cellEdgesAtEdge", cellEdgesAtEdge)
+    call MPAS_pool_get_array(velocity_variational, "triangleEdgesAtEdge", triangleEdgesAtEdge)
     call MPAS_pool_get_array(velocity_variational, "tanLatVertexRotatedOverRadius", tanLatVertexRotatedOverRadius)
+    call MPAS_pool_get_array(velocity_variational, "tanLatEdgeRotatedOverRadius", tanLatEdgeRotatedOverRadius)
     call MPAS_pool_get_array(velocity_variational, "basisGradientU", basisGradientU)
     call MPAS_pool_get_array(velocity_variational, "basisGradientV", basisGradientV)
+    call MPAS_pool_get_array(velocity_variational, "basisGradientUTri", basisGradientUTri)
+    call MPAS_pool_get_array(velocity_variational, "basisGradientVTri", basisGradientVTri)
     call MPAS_pool_get_array(velocity_variational, "basisIntegralsU", basisIntegralsU)
     call MPAS_pool_get_array(velocity_variational, "basisIntegralsV", basisIntegralsV)
     call MPAS_pool_get_array(velocity_variational, "basisIntegralsMetric", basisIntegralsMetric)
+    call MPAS_pool_get_array(velocity_variational, "basisIntegralsUTri", basisIntegralsUTri)
+    call MPAS_pool_get_array(velocity_variational, "basisIntegralsVTri", basisIntegralsVTri)
+    call MPAS_pool_get_array(velocity_variational, "basisIntegralsMetricTri", basisIntegralsMetricTri)
     call MPAS_pool_get_array(velocity_variational, "variationalDenominator", variationalDenominator)
 
+    config_use_c_grid = 1
+
     call mpas_timer_start("variational calc_metric_terms")
-    call seaice_calc_variational_metric_terms(&
-         tanLatVertexRotatedOverRadius, &
-         nVertices, &
-         xVertex, &
-         yVertex, &
-         zVertex, &
-         sphere_radius, &
-         rotateCartesianGrid, &
-         includeMetricTerms)
+    if (config_use_c_grid == 0) then
+       call seaice_calc_variational_metric_terms(&
+            tanLatVertexRotatedOverRadius, &
+            nVertices, &
+            xVertex, &
+            yVertex, &
+            zVertex, &
+            sphere_radius, &
+            rotateCartesianGrid, &
+            includeMetricTerms)
+    else
+           call seaice_calc_variational_metric_terms(&
+            tanLatEdgeRotatedOverRadius, &
+            nEdges, &
+            xEdge, &
+            yEdge, &
+            zEdge, &
+            sphere_radius, &
+            rotateCartesianGrid, &
+            includeMetricTerms)
+    end if
     call mpas_timer_stop("variational calc_metric_terms")
 
     call mpas_timer_start("variational vertices_at_vertex")
-    call seaice_cell_vertices_at_vertex(&
-         cellVerticesAtVertex, &
-         nVertices, &
-         vertexDegree, &
-         nEdgesOnCell, &
-         verticesOnCell, &
-         cellsOnVertex)
+    if (config_use_c_grid == 0) then
+       call seaice_cell_vertices_at_vertex(&
+            cellVerticesAtVertex, &
+            nVertices, &
+            vertexDegree, &
+            nEdgesOnCell, &
+            verticesOnCell, &
+            cellsOnVertex)
+    else
+       call seaice_cell_edges_at_edge(&
+            cellEdgesAtEdge, &
+            nEdges, &
+            nEdgesOnCell, &
+            edgesOnCell, &
+            cellsOnEdge)
+       call seaice_triangle_edges_at_edge(&
+            triangleEdgesAtEdge, &
+            nEdges, &
+            vertexDegree, &
+            edgesOnVertex, &
+            verticesOnEdge)
+    end if
     call mpas_timer_stop("variational vertices_at_vertex")
 
     call mpas_timer_start("variational calc_local_coords")
     allocate(xLocal(maxEdges,nCells))
     allocate(yLocal(maxEdges,nCells))
 
-    call seaice_calc_local_coords(&
-         xLocal, &
-         yLocal, &
-         nCells, &
-         nEdgesOnCell, &
-         verticesOnCell, &
-         xVertex, &
-         yVertex, &
-         zVertex, &
-         xCell, &
-         yCell, &
-         zCell, &
-         rotateCartesianGrid, &
-         on_a_sphere)
+    allocate(xLocalTri(vertexDegree,nVertices))
+    allocate(yLocalTri(vertexDegree,nVertices))
+
+    allocate(nEdgesOnVertex(nVertices))
+
+    nEdgesOnVertex(:) = vertexDegree !NOTE: assuming vertexDegree is = 3 always.
+
+    if (config_use_c_grid == 0) then
+       call seaice_calc_local_coords(&
+            xLocal, &
+            yLocal, &
+            nCells, &
+            nEdgesOnCell, &
+            verticesOnCell, &
+            xVertex, &
+            yVertex, &
+            zVertex, &
+            xCell, &
+            yCell, &
+            zCell, &
+            rotateCartesianGrid, &
+            on_a_sphere)
+    else
+       call seaice_calc_local_coords(&
+            xLocal, &
+            yLocal, &
+            nCells, &
+            nEdgesOnCell, &
+            edgesOnCell, &
+            xEdge, &
+            yEdge, &
+            zEdge, &
+            xCell, &
+            yCell, &
+            zCell, &
+            rotateCartesianGrid, &
+            on_a_sphere)
+
+       call seaice_calc_local_coords(&
+            xLocalTri, &
+            yLocalTri, &
+            nVertices, &
+            nEdgesOnVertex, &
+            edgesOnVertex, &
+            xEdge, &
+            yEdge, &
+            zEdge, &
+            xVertex, &
+            yVertex, &
+            zVertex, &
+            rotateCartesianGrid, &
+            on_a_sphere)
+    end if
+
     call mpas_timer_stop("variational calc_local_coords")
 
     if (trim(variationalBasisType) == "wachspress") then
@@ -292,6 +401,25 @@ contains
             basisIntegralsU, &
             basisIntegralsV, &
             basisIntegralsMetric)
+       if (config_use_c_grid == 1) then
+          call seaice_init_velocity_solver_wachspress(&
+              nVertices, &
+              vertexDegree, &
+              nEdgesOnVertex, &
+              xLocalTri, &
+              yLocalTri, &
+              rotateCartesianGrid, &
+              includeMetricTerms, &
+              on_a_sphere, &
+              integrationType, &
+              integrationOrder, &
+              sphere_radius, &
+              basisGradientUTri, &
+              basisGradientVTri, &
+              basisIntegralsUTri, &
+              basisIntegralsVTri, &
+              basisIntegralsMetricTri)
+       end if
 
     else if (trim(variationalBasisType) == "pwl") then
 
@@ -338,6 +466,9 @@ contains
     ! clean up
     deallocate(xLocal)
     deallocate(yLocal)
+    deallocate(xLocalTri)
+    deallocate(yLocalTri)
+    deallocate(nEdgesOnVertex)
 
     !call homogenize_variational_basis_field()
 

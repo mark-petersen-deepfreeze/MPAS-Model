@@ -25,6 +25,8 @@ module seaice_mesh
   public :: &
        seaice_init_mesh, &
        seaice_cell_vertices_at_vertex, &
+       seaice_cell_edges_at_edge, &
+       seaice_triangle_edges_at_edge, &
        seaice_normal_vectors, &
        seaice_normal_vectors_polygon, &
        seaice_dot_product_3space, &
@@ -683,6 +685,114 @@ contains
     enddo ! iVertex
 
   end subroutine seaice_cell_vertices_at_vertex!}}}
+
+!-----------------------------------------------------------------------
+
+  subroutine seaice_cell_edges_at_edge(&
+       cellEdgesAtEdge, &
+       nEdges, &
+       nEdgesOnCell, &
+       edgesOnCell, &
+       cellsOnEdge)!{{{
+
+    integer, dimension(:,:), intent(out) :: &
+         cellEdgesAtEdge !< Output:
+
+    integer, intent(in) :: &
+         nEdges !< Input:
+
+    integer, dimension(:), intent(in) :: &
+         nEdgesOnCell !< Input:
+
+    integer, dimension(:,:), intent(in) :: &
+         cellsOnEdge, & !< Input:
+         edgesOnCell   !< Input:
+
+    integer :: &
+         iEdge, &
+         iCellsOnEdge, &
+         iCell, &
+         iEdgesOnCell, &
+         jEdge
+
+    do iEdge = 1, nEdges
+
+       do iCellsOnEdge = 1, 2
+
+          cellEdgesAtEdge(iCellsOnEdge,iEdge) = 0
+
+          iCell = cellsOnEdge(iCellsOnEdge, iEdge)
+
+          do iEdgesOnCell = 1, nEdgesOnCell(iCell)
+
+             jEdge = edgesOnCell(iEdgesOnCell,iCell)
+
+             if (iEdge == jEdge) then
+
+                cellEdgesAtEdge(iCellsOnEdge,iEdge) = iEdgesOnCell
+
+             endif
+
+          enddo ! iEdgesOnCell
+
+       enddo ! iCellsOnEdge
+
+    enddo ! iEdge
+
+  end subroutine seaice_cell_edges_at_edge!}}}
+
+!-----------------------------------------------------------------------
+
+  subroutine seaice_triangle_edges_at_edge(&
+       triangleEdgesAtEdge, &
+       nEdges, &
+       vertexDegree, &
+       edgesOnVertex, &
+       verticesOnEdge)!{{{
+
+    integer, dimension(:,:), intent(out) :: &
+         triangleEdgesAtEdge !< Output:
+
+    integer, intent(in) :: &
+         nEdges, & !< Input:
+         vertexDegree !<Input:
+
+    integer, dimension(:,:), intent(in) :: &
+         verticesOnEdge, & !< Input:
+         edgesOnVertex   !< Input:
+
+    integer :: &
+         iEdge, &
+         iTrianglesOnEdge, &
+         iTriangle, &
+         iTriangleVertex, &
+         jEdge
+
+    do iEdge = 1, nEdges
+
+       do iTrianglesOnEdge = 1, 2
+
+          triangleEdgesAtEdge(iTrianglesOnEdge,iEdge) = 0
+
+          iTriangle = verticesOnEdge(iTrianglesOnEdge, iEdge)
+
+          do iTriangleVertex = 1, vertexDegree
+
+             jEdge = edgesOnVertex(iTriangleVertex,iTriangle)
+
+             if (iEdge == jEdge) then
+
+                triangleEdgesAtEdge(iTrianglesOnEdge,iEdge) = iTriangleVertex
+
+             endif
+
+          enddo ! iTriangleVertex
+
+       enddo ! iTrianglesOnEdge
+
+    enddo ! iEdge
+
+  end subroutine seaice_triangle_edges_at_edge!}}}
 
 !-----------------------------------------------------------------------
 ! normal vectors
