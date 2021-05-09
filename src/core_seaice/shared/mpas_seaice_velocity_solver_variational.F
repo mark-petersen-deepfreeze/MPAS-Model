@@ -158,7 +158,8 @@ contains
     real(kind=RKIND), dimension(:), pointer :: &
          tanLatVertexRotatedOverRadius, &
          tanLatEdgeRotatedOverRadius, &
-         variationalDenominator
+         variationalDenominator, &
+         variationalDenominatorCGrid
 
     real(kind=RKIND), dimension(:,:,:), pointer :: &
          basisGradientU, &
@@ -201,6 +202,10 @@ contains
          xCell, &
          yCell, &
          zCell, &
+         latCell, &
+         lonCell, &
+         latVertex, &
+         lonVertex, &
          areaCell, &
          areaTriangle, &
          dvEdge
@@ -248,6 +253,10 @@ contains
     call MPAS_pool_get_array(mesh, "xCell", xCell)
     call MPAS_pool_get_array(mesh, "yCell", yCell)
     call MPAS_pool_get_array(mesh, "zCell", zCell)
+    call MPAS_pool_get_array(mesh, "latCell", latCell)
+    call MPAS_pool_get_array(mesh, "lonCell", lonCell)
+    call MPAS_pool_get_array(mesh, "latVertex", latVertex)
+    call MPAS_pool_get_array(mesh, "lonVertex", lonVertex)
     call MPAS_pool_get_array(mesh, "areaCell", areaCell)
     call MPAS_pool_get_array(mesh, "areaTriangle", areaTriangle)
     call MPAS_pool_get_array(mesh, "dvEdge", dvEdge)
@@ -270,6 +279,7 @@ contains
     call MPAS_pool_get_array(velocity_variational, "basisIntegralsVTri", basisIntegralsVTri)
     call MPAS_pool_get_array(velocity_variational, "basisIntegralsMetricTri", basisIntegralsMetricTri)
     call MPAS_pool_get_array(velocity_variational, "variationalDenominator", variationalDenominator)
+    call MPAS_pool_get_array(velocity_variational, "variationalDenominatorCGrid", variationalDenominatorCGrid)
 
     config_use_c_grid = 1
 
@@ -450,17 +460,37 @@ contains
     endif
 
     call mpas_timer_start("variational denominator")
-    call variational_denominator(&
-         nVertices, &
-         vertexDegree, &
-         nEdgesOnCell, &
-         interiorVertex, &
-         areaTriangle, &
-         cellsOnVertex, &
-         cellVerticesAtVertex, &
-         basisIntegralsMetric, &
-         variationalDenominatorType, &
-         variationalDenominator)
+    if (config_use_c_grid == 0) then
+       call variational_denominator(&
+            nVertices, &
+            vertexDegree, &
+            nEdgesOnCell, &
+            interiorVertex, &
+            areaTriangle, &
+            cellsOnVertex, &
+            cellVerticesAtVertex, &
+            basisIntegralsMetric, &
+            variationalDenominatorType, &
+            variationalDenominator)
+    else
+       call variational_denominator_c_grid(&
+            on_a_sphere, &
+            sphere_radius, &
+            cellsOnEdge, &
+            verticesOnEdge, &
+            nEdges, &
+            xCell, &
+            yCell, &
+            zCell, &
+            xVertex, &
+            yVertex, &
+            zVertex, &
+            latCell, &
+            lonCell, &
+            latVertex, &
+            lonVertex, &
+            variationalDenominatorCGrid)
+    end if
     call mpas_timer_stop("variational denominator")
 
     ! clean up
@@ -574,6 +604,142 @@ contains
     endif
 
   end subroutine variational_denominator
+
+!-----------------------------------------------------------------------
+
+  subroutine variational_denominator_c_grid(&
+       on_a_sphere, &
+       sphere_radius, &
+       cellsOnEdge, &
+       verticesOnEdge, &
+       nEdges, &
+       xCell, &
+       yCell, &
+       zCell, &
+       xVertex, &
+       yVertex, &
+       zVertex, &
+       latCell, &
+       lonCell, &
+       latVertex, &
+       lonVertex, &
+       variationalDenominatorCGrid)
+
+    use seaice_mesh, only: &
+         spherical_triangle_area, &
+         planar_triangle_area
+
+    integer, intent(in) :: &
+         nEdges  !< Input:
+
+    real(kind=RKIND), pointer :: &
+         sphere_radius !<Input:
+
+    logical, intent(in) :: &
+         on_a_sphere !< Input:
+
+    integer, dimension(:,:), intent(in) :: &
+         cellsOnEdge, &  !<Input:
+         verticesOnEdge  !<Input:
+
+    real(kind=RKIND), dimension(:), intent(out) :: &
+         xCell, &     !< Input:
+         yCell, &     !< Input:
+         zCell, &     !< Input:
+         xVertex, &   !< Input:
+         yVertex, &   !< Input:
+         zVertex, &   !< Input:
+         latCell, &   !< Input:
+         lonCell, &   !< Input:
+         latVertex, & !< Input:
+         lonVertex    !< Input:
+
+    real(kind=RKIND), dimension(:), intent(out) :: &
+         variationalDenominatorCGrid !< Output:
+
+    integer :: &
+         iEdge, &
+         iCellOnEdge, &
+         cellOnEdge, &
+         vertOnEdge1, &
+         vertOnEdge2
+
+    real(kind=RKIND) :: &
+         laCell, &
+         loCell, &
+         laVert1, &
+         loVert1, &
+         laVert2, &
+         loVert2, &
+         xc, &
+         yc, &
+         zc, &
+         xv1, &
+         yv1, &
+         zv1, &
+         xv2, &
+         yv2, &
+         zv2
+     
+    real(kind=RKIND) :: &
+         triangleArea 
+
+    variationalDenominatorCGrid(:) = 0.0_RKIND
+
+    if(on_a_sphere) then
+
+       do iEdge = 1, nEdges
+
+          vertOnEdge1 = verticesOnEdge(1, iEdge)
+          vertOnEdge2 = verticesOnEdge(2, iEdge)
+          laVert1 = latVertex(vertOnEdge1)
+          loVert1 = lonVertex(vertOnEdge1)
+          laVert2 = latVertex(vertOnEdge2)
+          laVert2 = latVertex(vertOnEdge2)
+
+          do iCellOnEdge = 1, 2
+
+             cellOnEdge = cellsOnEdge(iCellOnEdge, iEdge)
+             laCell = latCell(cellOnEdge)             
+             loCell = lonCell(cellOnEdge)
+
+             triangleArea = spherical_triangle_area(laCell, loCell, laVert1, loVert1, laVert2, loVert2, sphere_radius)                 
+             variationalDenominatorCGrid(iEdge) = variationalDenominatorCGrid(iEdge) + triangleArea 
+
+          end do
+          
+       end do 
+
+    else
+
+       do iEdge = 1, nEdges
+
+          vertOnEdge1 = verticesOnEdge(1, iEdge)
+          vertOnEdge2 = verticesOnEdge(2, iEdge)
+          xv1 = xVertex(vertOnEdge1)
+          yv1 = yVertex(vertOnEdge1)
+          zv1 = zVertex(vertOnEdge1)
+          xv2 = xVertex(vertOnEdge2)
+          yv2 = yVertex(vertOnEdge2)
+          zv2 = zVertex(vertOnEdge2)
+
+          do iCellOnEdge = 1, 2
+
+             cellOnEdge = cellsOnEdge(iCellOnEdge, iEdge)
+             xc = xCell(cellOnEdge)
+             yc = yCell(cellOnEdge)
+             zc = zCell(cellOnEdge)
+
+             triangleArea = planar_triangle_area(xc, yc, zc, xv1, yv1, zv1, xv2, yv2, zv2)
+             variationalDenominatorCGrid(iEdge) = variationalDenominatorCGrid(iEdge) + triangleArea
+
+          end do
+
+       end do
+
+    end if
+
+end subroutine variational_denominator_c_grid
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !

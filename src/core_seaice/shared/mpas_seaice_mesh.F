@@ -36,7 +36,11 @@ module seaice_mesh
        seaice_latlon_from_xyz, &
        seaice_interpolate_cell_to_vertex, &
        seaice_interpolate_vertex_to_cell, &
-       seaice_project_3D_vector_onto_local_2D
+       seaice_project_3D_vector_onto_local_2D, &
+       spherical_triangle_area, &
+       sphere_distance, &
+       planar_triangle_area, &
+       planar_distance
 
 contains
 
@@ -3912,5 +3916,87 @@ contains
   end subroutine seaice_test_mesh_conversions
 
 !-----------------------------------------------------------------------
+
+   real function spherical_triangle_area(laPointOne, loPointOne, laPointTwo, loPointTwo, laPointThree, loPointThree, radius)
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   ! sphericalTriangleArea uses the spherical analog of Heron's formula to
+   ! compute the area of a triangle on the surface of a sphere
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      real (kind=RKIND), intent(in) :: laPointOne, loPointOne, laPointTwo, loPointTwo, laPointThree, loPointThree, radius
+      real (kind=RKIND) :: tanqe, s, a, b, c
+
+      a = sphere_distance(laPointThree, loPointThree, laPointTwo, loPointTwo, radius)
+      b = sphere_distance(laPointThree, loPointThree, laPointOne, loPointOne, radius)
+      c = sphere_distance(laPointOne, loPointOne, laPointTwo, loPointTwo, radius)
+      s = 0.5*(a+b+c)
+
+      tanqe = sqrt(tan(0.5*s)*tan(0.5*(s-a))*tan(0.5*(s-b))*tan(0.5*(s-c)))
+      spherical_triangle_area = 4.*atan(tanqe)*radius*radius
+
+   end function spherical_triangle_area
+
+!-----------------------------------------------------------------------
+
+   real function planar_triangle_area(x1, y1, z1, x2, y2, z2, x3, y3, z3)
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   ! planarTriangleArea uses Heron's formula to compute the area
+   ! of a triangle in a plane
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+     implicit none
+
+     real (kind=RKIND), intent(in) :: x1, y1, z1, x2, y2, z2, x3, y3, z3
+     real (kind=RKIND) :: s, a, b, c
+
+     !get side lengths
+     a = planar_distance(x1, y1, z1, x2, y2, z2)
+     b = planar_distance(x2, y2, z2, x3, y3, z3)
+     c = planar_distance(x1, y1, z1, x3, y3, z3)
+
+     !semi-perimeter of TRI(ABC)
+     s = (a + b + c) * 0.5_RKIND
+
+     planar_triangle_area = sqrt(s * (s - a) * (s - b) * (s - c))
+
+   end function planar_triangle_area
+
+!-----------------------------------------------------------------------
+
+   real function planar_distance(x1, y1, z1, x2, y2, z2)
+
+     implicit none
+
+     real (kind=RKIND), intent(in) :: x1, y1, z1, x2, y2, z2
+     real (kind=RKIND) :: a, b, c
+
+     a = x1 - x2
+     b = y1 - y2
+     c = z1 - z2
+     planar_distance = sqrt(a**2+b**2+c**2)
+
+   end function planar_distance
+
+!-----------------------------------------------------------------------
+
+   real function sphere_distance(lat1, lon1, lat2, lon2, radius)
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   ! Compute the great-circle distance between (lat1, lon1) and (lat2, lon2) 
+   ! on a sphere with given radius.
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      implicit none
+
+      real (kind=RKIND), intent(in) :: lat1, lon1, lat2, lon2, radius
+
+      real (kind=RKIND) :: arg1
+
+      arg1 = sqrt( sin(0.5*(lat2-lat1))**2 +  &
+                   cos(lat1)*cos(lat2)*sin(0.5*(lon2-lon1))**2 )
+      sphere_distance = 2.*radius*asin(arg1)
+
+   end function sphere_distance
 
 end module seaice_mesh
