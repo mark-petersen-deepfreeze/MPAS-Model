@@ -27,6 +27,7 @@ module seaice_velocity_solver_variational
   public :: &
        seaice_init_velocity_solver_variational, &
        seaice_strain_tensor_variational, &
+       seaice_strain_tensor_variational_c_grid, &
        seaice_average_strains_on_vertex, &
        seaice_stress_tensor_variational, &
        seaice_stress_divergence_variational, &
@@ -927,8 +928,9 @@ end subroutine variational_denominator_c_grid
 !$omp parallel do default(shared) private(iGradientVertex, iBasisVertex, iVertex, jVertex, &
 !$omp&                                    strain11Tmp, strain22Tmp, strain12Tmp)
 #endif
-    do iCell = 1, nCells
 
+    do iCell = 1, nCells
+   
        if (solveStress(iCell) == 1) then
 
           ! loop over velocity points surrounding cell - location of stress and derivative
@@ -965,6 +967,176 @@ end subroutine variational_denominator_c_grid
     enddo ! iCell
 
   end subroutine seaice_strain_tensor_variational!}}}
+
+  subroutine seaice_strain_tensor_variational_c_grid(&
+       mesh, &
+       strain11, &
+       strain22, &
+       strain12, &
+       strain11Tri, &
+       strain22Tri, &
+       strain12Tri, &
+       uVelocity, &
+       vVelocity, &
+       basisGradientU, &
+       basisGradientV, &
+       basisGradientUTri, &
+       basisGradientVTri, &
+       tanLatEdgeRotatedOverRadius)!{{{
+
+    use seaice_mesh_pool, only: &
+         nCells, &
+         nEdges, &
+         nVertices, & 
+         vertexDegree, &
+         edgesOnCell, &
+         edgesOnVertex, &
+         nEdgesOnCell, &
+         verticesOnEdge
+
+    type(MPAS_pool_type), pointer, intent(in) :: &
+         mesh !< Input:
+
+    real(kind=RKIND), dimension(:,:), intent(out) :: &
+         strain11,    & !< Output:
+         strain22,    & !< Output:
+         strain12,    &!< Output:
+         strain11Tri, & !< Output:
+         strain22Tri, & !< Output:
+         strain12Tri    !< Output:
+
+    real(kind=RKIND), dimension(:), intent(in) :: &
+         uVelocity, & !< Input:
+         vVelocity, & !< Input:
+         tanLatEdgeRotatedOverRadius !< Input:
+
+    real(kind=RKIND), dimension(:,:,:), contiguous, intent(in) :: &
+         basisGradientU, & !< Input:
+         basisGradientV, & !< Input:
+         basisGradientUTri, & !< Input:
+         basisGradientVTri    !< Input:
+
+    integer :: &
+         iCell, &
+         iGradientEdge, &
+         iBasisEdge, &
+         iEdge, &
+         jEdge, &
+         vertexOnEdge1, & 
+         vertexOnEdge2, &
+         iVertex
+
+    real(kind=RKIND) :: &
+         strain11Tmp, &
+         strain22Tmp, &
+         strain12Tmp
+
+    real(kind=RKIND), dimension(:), allocatable :: &
+         uVelocityEdge, &
+         vVelocityEdge
+
+    integer :: &   !TODO: add to namelist
+         config_use_c_grid
+
+    config_use_c_grid = 1
+
+    allocate(uVelocityEdge(nEdges))
+    allocate(vVelocityEdge(nEdges))
+
+    ! loop over cells
+#ifdef MPAS_OPENMP_OFFLOAD
+!$omp target teams distribute parallel do
+#elif MPAS_OPENACC
+!$acc parallel loop gang worker
+#else
+!$omp parallel do default(shared) private(iGradientVertex, iBasisVertex, iVertex, jVertex, &
+!$omp&                                    strain11Tmp, strain22Tmp, strain12Tmp)
+#endif
+
+    do iEdge = 1, nEdges
+ 
+       vertexOnEdge1 = verticesOnEdge(1,iEdge)
+       vertexOnEdge2 = verticesOnEdge(2,iEdge)
+
+       uVelocityEdge(iEdge) = 0.5 * (uVelocity(vertexOnEdge1) + uVelocity(vertexOnEdge2))
+       vVelocityEdge(iEdge) = 0.5 * (vVelocity(vertexOnEdge1) + vVelocity(vertexOnEdge2))
+
+    end do
+
+    do iCell = 1, nCells
+   
+       ! TODO: MAYBE THERE SHOULD BE A SOLVESTRESS(iCell) HERE????????
+
+       ! loop over velocity points surrounding cell - location of stress and derivative
+       do iGradientEdge = 1, nEdgesOnCell(iCell)
+
+          strain11Tmp = 0.0_RKIND
+          strain22Tmp = 0.0_RKIND
+          strain12Tmp = 0.0_RKIND
+
+          ! loop over basis functions
+          do iBasisEdge = 1, nEdgesOnCell(iCell)
+
+             iEdge = edgesOnCell(iBasisEdge,iCell)
+
+             strain11Tmp = strain11Tmp + uVelocityEdge(iEdge) * basisGradientU(iBasisEdge,iGradientEdge,iCell)
+             strain22Tmp = strain22Tmp + vVelocityEdge(iEdge) * basisGradientV(iBasisEdge,iGradientEdge,iCell)
+             strain12Tmp = strain12Tmp + 0.5_RKIND * (&
+                           uVelocityEdge(iEdge) * basisGradientV(iBasisEdge,iGradientEdge,iCell) + &
+                           vVelocityEdge(iEdge) * basisGradientU(iBasisEdge,iGradientEdge,iCell))
+
+          end do ! iEdgeOnCell
+
+          ! metric terms
+          jEdge = edgesOnCell(iGradientEdge,iCell)
+
+                strain11(iGradientEdge,iCell) = strain11Tmp - vVelocityEdge(jEdge) * tanLatEdgeRotatedOverRadius(jEdge)
+                strain12(iGradientEdge,iCell) = strain12Tmp + uVelocityEdge(jEdge) * tanLatEdgeRotatedOverRadius(jEdge) * 0.5_RKIND
+                strain22(iGradientEdge,iCell) = strain22Tmp
+
+       end do ! jEdgeOnCell
+
+    enddo ! iCell
+
+    do iVertex = 1, nVertices
+
+       ! TODO: MAYBE THERE SHOULD BE A SOLVESTRESS(iVertex) HERE????????
+
+       ! loop over velocity points surrounding triangle - location of stress and derivative
+       do iGradientEdge = 1, vertexDegree
+
+          strain11Tmp = 0.0_RKIND
+          strain22Tmp = 0.0_RKIND
+          strain12Tmp = 0.0_RKIND
+
+          ! loop over basis functions
+          do iBasisEdge = 1, vertexDegree
+
+             iEdge = edgesOnVertex(iBasisEdge,iVertex)
+
+             strain11Tmp = strain11Tmp + uVelocityEdge(iEdge) * basisGradientUTri(iBasisEdge,iGradientEdge,iVertex)
+             strain22Tmp = strain22Tmp + vVelocityEdge(iEdge) * basisGradientVTri(iBasisEdge,iGradientEdge,iVertex)
+             strain12Tmp = strain12Tmp + 0.5_RKIND * (&
+                           uVelocityEdge(iEdge) * basisGradientVTri(iBasisEdge,iGradientEdge,iVertex) + &
+                           vVelocityEdge(iEdge) * basisGradientUTri(iBasisEdge,iGradientEdge,iVertex))
+
+          end do ! iEdgeOnVertex
+
+          ! metric terms
+          jEdge = edgesOnVertex(iGradientEdge,iVertex)
+
+          strain11Tri(iGradientEdge,iVertex) = strain11Tmp - vVelocityEdge(jEdge) * tanLatEdgeRotatedOverRadius(jEdge)
+          strain12Tri(iGradientEdge,iVertex) = strain12Tmp + uVelocityEdge(jEdge) * tanLatEdgeRotatedOverRadius(jEdge) * 0.5_RKIND
+          strain22Tri(iGradientEdge,iVertex) = strain22Tmp
+
+       end do ! jEdgeOnVertex
+
+    enddo ! iVertex
+
+    deallocate(uVelocityEdge)
+    deallocate(uVelocityEdge)
+
+  end subroutine seaice_strain_tensor_variational_c_grid !}}}
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !

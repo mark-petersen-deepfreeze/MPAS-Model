@@ -2609,9 +2609,16 @@ contains
          basisGradientU, &
          basisGradientV, &
          basisIntegralsMetric, &
+         basisGradientUTri, &
+         basisGradientVTri, &
+         basisIntegralsMetricTri, &
          basisIntegralsU, &
          basisIntegralsV, &
+         basisIntegralsUTri, &
+         basisIntegralsVTri, &
          cellVerticesAtVertex, &
+         cellEdgesAtEdge, &
+         triangleEdgesAtEdge, &
          icePressure, &
          solveStress, &
          solveVelocity, &
@@ -2619,6 +2626,7 @@ contains
          stress22var => stress22, &
          stress12var => stress12, &
          tanLatVertexRotatedOverRadius, &
+         tanLatEdgeRotatedOverRadius, &
          uVelocity, &
          vVelocity
 
@@ -2629,6 +2637,7 @@ contains
 
     use seaice_velocity_solver_variational, only: &
          seaice_strain_tensor_variational, &
+         seaice_strain_tensor_variational_c_grid, &
          seaice_stress_tensor_variational, &
          seaice_stress_divergence_variational, &
          seaice_average_strains_on_vertex
@@ -2673,10 +2682,19 @@ contains
          replacementPressureVar, &
          strain11var, &
          strain22var, &
-         strain12var
+         strain12var, &
+         strain11varTri, &
+         strain22varTri, &
+         strain12varTri
 
     real(kind=RKIND), dimension(:), pointer :: &
-         variationalDenominator
+         variationalDenominator, &
+         variationalDenominatorCGrid
+
+    integer :: &   !TODO: add to namelist
+         config_use_c_grid
+
+    config_use_c_grid = 1
 
     blockPtr => domain % blocklist
     do while (associated(blockPtr))
@@ -2714,8 +2732,16 @@ contains
           call MPAS_pool_get_array(velocityVariationalPool, "strain11", strain11var)
           call MPAS_pool_get_array(velocityVariationalPool, "strain22", strain22var)
           call MPAS_pool_get_array(velocityVariationalPool, "strain12", strain12var)
-          call MPAS_pool_get_array(velocityVariationalPool, "replacementPressure", replacementPressureVar)
-          call MPAS_pool_get_array(velocityVariationalPool, "variationalDenominator", variationalDenominator)
+
+          if (config_use_c_grid == 0) then
+             call MPAS_pool_get_array(velocityVariationalPool, "replacementPressure", replacementPressureVar)
+             call MPAS_pool_get_array(velocityVariationalPool, "variationalDenominator", variationalDenominator)
+          else
+             call MPAS_pool_get_array(velocityVariationalPool, "strain11Tri", strain11varTri)
+             call MPAS_pool_get_array(velocityVariationalPool, "strain22Tri", strain22varTri)
+             call MPAS_pool_get_array(velocityVariationalPool, "strain12Tri", strain12varTri)
+             call MPAS_pool_get_array(velocityVariationalPool, "variationalDenominatorCGrid", variationalDenominatorCGrid)
+          end if
 
        endif
 
@@ -2738,17 +2764,35 @@ contains
        else if (strainSchemeType == VARIATIONAL_STRAIN_SCHEME) then
 
           call mpas_timer_start("Velocity solver strain tensor")
-          call seaice_strain_tensor_variational(&
-               meshPool, &
-               strain11var, &
-               strain22var, &
-               strain12var, &
-               uVelocity, &
-               vVelocity, &
-               basisGradientU, &
-               basisGradientV, &
-               tanLatVertexRotatedOverRadius, &
-               solveStress)
+          if (config_use_c_grid == 0) then
+             call seaice_strain_tensor_variational(&
+                  meshPool, &
+                  strain11var, &
+                  strain22var, &
+                  strain12var, &
+                  uVelocity, &
+                  vVelocity, &
+                  basisGradientU, &
+                  basisGradientV, &
+                  tanLatVertexRotatedOverRadius, &
+                  solveStress)
+          else 
+             call seaice_strain_tensor_variational_c_grid(&
+                  meshPool, &
+                  strain11var, &
+                  strain22var, &
+                  strain12var, &
+                  strain11varTri, &
+                  strain22varTri, &
+                  strain12varTri, &
+                  uVelocity, &
+                  vVelocity, &
+                  basisGradientU, &
+                  basisGradientV, &
+                  basisGradientUTri, &
+                  basisGradientVTri, &
+                  tanLatEdgeRotatedOverRadius)
+          end if
           call mpas_timer_stop("Velocity solver strain tensor")
 
        endif

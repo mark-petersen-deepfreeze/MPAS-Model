@@ -3739,6 +3739,9 @@
 		<var name="strain11var"			type="real"	dimensions="maxEdges nCells Time"		name_in_code="strain11"/>
 		<var name="strain22var"			type="real"	dimensions="maxEdges nCells Time"		name_in_code="strain22"/>
 		<var name="strain12var"			type="real"	dimensions="maxEdges nCells Time"		name_in_code="strain12"/>
+		<var name="strain11varTri"              type="real"	dimensions="R3 nVertices Time"		        name_in_code="strain11Tri"/>
+		<var name="strain22varTri"		type="real"	dimensions="R3 nVertices Time"		        name_in_code="strain22Tri"/>
+		<var name="strain12varTri"		type="real"	dimensions="R3 nVertices Time"		        name_in_code="strain12Tri"/>
 		<var name="stress11var"			type="real"	dimensions="maxEdges nCells Time"		name_in_code="stress11"/>
 		<var name="stress22var"			type="real"	dimensions="maxEdges nCells Time"		name_in_code="stress22"/>
 		<var name="stress12var"			type="real"	dimensions="maxEdges nCells Time"		name_in_code="stress12"/>

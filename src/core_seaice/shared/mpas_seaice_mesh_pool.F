@@ -22,6 +22,8 @@ module seaice_mesh_pool
 
    integer, public :: &
       nCells,         &
+      nEdges,         &
+      nVertices,      &
       nVerticesSolve, &
       vertexDegree
 
@@ -33,11 +35,17 @@ module seaice_mesh_pool
    integer, public, dimension(:,:), pointer :: &
       verticesOnCell, &
       cellsOnVertex,  &
-      cellVerticesAtVertex
+      edgesOnCell,    &
+      edgesOnVertex,  &
+      verticesOnEdge, &
+      cellVerticesAtVertex, &
+      cellEdgesAtEdge, &
+      triangleEdgesAtEdge
 
    real(kind=RKIND), public, dimension(:), pointer :: &
       areaTriangle,   &
       tanLatVertexRotatedOverRadius, &
+      tanLatEdgeRotatedOverRadius, &
       icePressure,    &
       uVelocity,      &
       vVelocity,      &
@@ -52,9 +60,14 @@ module seaice_mesh_pool
    real(kind=RKIND), public, dimension(:,:,:), pointer :: &
       basisGradientU, &
       basisGradientV, &
+      basisGradientUTri, &
+      basisGradientVTri, &
       basisIntegralsU,&
       basisIntegralsV,&
-      basisIntegralsMetric
+      basisIntegralsMetric, &
+      basisIntegralsUTri,&
+      basisIntegralsVTri,&
+      basisIntegralsMetricTri
 
    public ::                   &
       seaice_mesh_pool_create, &
@@ -92,6 +105,8 @@ contains
 
     integer, pointer ::   &
          nCellsTmp,         &
+         nEdgesTmp,         &
+         nVerticesTmp,      &
          nVerticesSolveTmp, &
          vertexDegreeTmp
 
@@ -110,10 +125,14 @@ contains
 
        ! convert mesh dimensions from pointers to scalars
        call mpas_pool_get_dimension(meshPool, 'nCells', nCellsTmp)
+       call mpas_pool_get_dimension(meshPool, 'nEdges', nEdgesTmp)
+       call MPAS_pool_get_dimension(meshPool, "nVertices", nVerticesTmp)
        call MPAS_pool_get_dimension(meshPool, "nVerticesSolve", nVerticesSolveTmp)
        call MPAS_pool_get_dimension(meshPool, "vertexDegree", vertexDegreeTmp)
 
        nCells         = nCellsTmp
+       nEdges         = nEdgesTmp
+       nVertices      = nVerticesTmp
        nVerticesSolve = nVerticesSolveTmp
        vertexDegree   = vertexDegreeTmp
 
@@ -121,6 +140,9 @@ contains
        call mpas_pool_get_array(meshPool, 'nEdgesOnCell',   nEdgesOnCell)
        call mpas_pool_get_array(meshPool, 'verticesOnCell', verticesOnCell)
        call mpas_pool_get_array(meshPool, 'cellsOnVertex',  cellsOnVertex)
+       call mpas_pool_get_array(meshPool, 'edgesOnCell',  edgesOnCell)
+       call mpas_pool_get_array(meshPool, 'edgesOnVertex',  edgesOnVertex)
+       call mpas_pool_get_array(meshPool, 'verticesOnEdge',  verticesOnEdge)
        call mpas_pool_get_array(meshPool, 'areaTriangle',   areaTriangle)
 
        call MPAS_pool_get_array(velocitySolverPool, "solveStress",       solveStress)
@@ -133,11 +155,19 @@ contains
 
        call MPAS_pool_get_array(velocityVariationalPool, "basisGradientU",       basisGradientU)
        call MPAS_pool_get_array(velocityVariationalPool, "basisGradientV",       basisGradientV)
+       call MPAS_pool_get_array(velocityVariationalPool, "basisGradientUTri",       basisGradientUTri)
+       call MPAS_pool_get_array(velocityVariationalPool, "basisGradientVTri",       basisGradientVTri)
        call MPAS_pool_get_array(velocityVariationalPool, "basisIntegralsU",      basisIntegralsU)
        call MPAS_pool_get_array(velocityVariationalPool, "basisIntegralsV",      basisIntegralsV)
        call MPAS_pool_get_array(velocityVariationalPool, "basisIntegralsMetric", basisIntegralsMetric)
+       call MPAS_pool_get_array(velocityVariationalPool, "basisIntegralsUTri",      basisIntegralsUTri)
+       call MPAS_pool_get_array(velocityVariationalPool, "basisIntegralsVTri",      basisIntegralsVTri)
+       call MPAS_pool_get_array(velocityVariationalPool, "basisIntegralsMetricTri", basisIntegralsMetricTri)
        call MPAS_pool_get_array(velocityVariationalPool, "tanLatVertexRotatedOverRadius", tanLatVertexRotatedOverRadius)
+       call MPAS_pool_get_array(velocityVariationalPool, "tanLatEdgeRotatedOverRadius", tanLatEdgeRotatedOverRadius)
        call MPAS_pool_get_array(velocityVariationalPool, "cellVerticesAtVertex", cellVerticesAtVertex)
+       call MPAS_pool_get_array(velocityVariationalPool, "cellEdgesAtEdge", cellEdgesAtEdge)
+       call MPAS_pool_get_array(velocityVariationalPool, "triangleEdgesAtEdge", triangleEdgesAtEdge)
        call MPAS_pool_get_array(velocityVariationalPool, "stress11",             stress11)
        call MPAS_pool_get_array(velocityVariationalPool, "stress22",             stress22)
        call MPAS_pool_get_array(velocityVariationalPool, "stress12",             stress12)
@@ -145,11 +175,16 @@ contains
 #if defined(MPAS_OPENMP_OFFLOAD) || defined(MPAS_OPENACC)
 !$GPU ENTER_DATA COPY_IN_LP             &
 !$GPUC   nCells,                        &
+!$GPUC   nEdges,                        &
+!$GPUC   nVertices,                     &
 !$GPUC   nVerticesSolve,                &
 !$GPUC   vertexDegree,                  &
 !$GPUC   nEdgesOnCell,                  &
 !$GPUC   verticesOnCell,                &
 !$GPUC   cellsOnVertex,                 &
+!$GPUC   edgesOnCell,                   &
+!$GPUC   edgesOnVertex,                 &
+!$GPUC   verticesOnEdge,                &
 !$GPUC   areaTriangle,                  &
 !$GPUC   solveStress,                   &
 !$GPUC   solveVelocity,                 &
@@ -160,11 +195,19 @@ contains
 !$GPUC   stressDivergenceV,             &
 !$GPUC   basisGradientU,                &
 !$GPUC   basisGradientV,                &
+!$GPUC   basisGradientUTri,             &
+!$GPUC   basisGradientVTri,             &
 !$GPUC   basisIntegralsU,               &
 !$GPUC   basisIntegralsV,               &
 !$GPUC   basisIntegralsMetric,          &
+!$GPUC   basisIntegralsUTri,            &
+!$GPUC   basisIntegralsVTri,            &
+!$GPUC   basisIntegralsMetricTri        &
 !$GPUC   tanLatVertexRotatedOverRadius, &
+!$GPUC   tanLatEdgeRotatedOverRadius,   &
 !$GPUC   cellVerticesAtVertex,          &
+!$GPUC   cellEdgesAtEdge,               &
+!$GPUC   triangleEdgesAtEdge,           &
 !$GPUC   stress11,                      &
 !$GPUC   stress12,                      &
 !$GPUC   stress22                       &
@@ -197,11 +240,16 @@ contains
     ! first delete on device
 !$GPU EXIT_DATA COPY_DEL_LP             &
 !$GPUC   nCells,                        &
+!$GPUC   nEdges,                        &
+!$GPUC   nVertices,                     &
 !$GPUC   nVerticesSolve,                &
 !$GPUC   vertexDegree,                  &
 !$GPUC   nEdgesOnCell,                  &
 !$GPUC   verticesOnCell,                &
 !$GPUC   cellsOnVertex,                 &
+!$GPUC   edgesOnCell,                   &
+!$GPUC   edgesOnVertex,                 &
+!$GPUC   verticesOnEdge,                &
 !$GPUC   areaTriangle,                  &
 !$GPUC   solveStress,                   &
 !$GPUC   solveVelocity,                 &
@@ -212,11 +260,19 @@ contains
 !$GPUC   stressDivergenceV,             &
 !$GPUC   basisGradientU,                &
 !$GPUC   basisGradientV,                &
+!$GPUC   basisGradientUTri,             &
+!$GPUC   basisGradientVTri,             &
 !$GPUC   basisIntegralsU,               &
 !$GPUC   basisIntegralsV,               &
 !$GPUC   basisIntegralsMetric,          &
+!$GPUC   basisIntegralsUTri,            &
+!$GPUC   basisIntegralsVTri,            &
+!$GPUC   basisIntegralsMetricTri,       &
 !$GPUC   tanLatVertexRotatedOverRadius, &
+!$GPUC   tanLatEdgeRotatedOverRadius,   &
 !$GPUC   cellVerticesAtVertex,          &
+!$GPUC   cellEdgesAtEdge,               &
+!$GPUC   triangleEdgesAtEdge            &
 !$GPUC   stress11,                      &
 !$GPUC   stress12,                      &
 !$GPUC   stress22                       &
@@ -224,24 +280,35 @@ contains
 #endif
 
     ! then nullify on host
-    nullify(nEdgesOnCell,      &
-         verticesOnCell,       &
-         cellsOnVertex,        &
-         areaTriangle,         &
-         solveStress,          &
-         solveVelocity,        &
-         icePressure,          &
-         uVelocity,            &
-         vVelocity,            &
-         stressDivergenceU,    &
-         stressDivergenceV,    &
-         basisGradientU,       &
-         basisGradientV,       &
-         basisIntegralsU,      &
-         basisIntegralsV,      &
-         basisIntegralsMetric, &
+    nullify(nEdgesOnCell,         &
+         verticesOnCell,          &
+         cellsOnVertex,           &
+         edgesOnCell,             &
+         edgesOnVertex,           &
+         verticesOnEdge,          &
+         areaTriangle,            &
+         solveStress,             &
+         solveVelocity,           &
+         icePressure,             &
+         uVelocity,               &
+         vVelocity,               &
+         stressDivergenceU,       &
+         stressDivergenceV,       &
+         basisGradientU,          &
+         basisGradientV,          &
+         basisGradientUTri,       &
+         basisGradientVTri,       &
+         basisIntegralsU,         &
+         basisIntegralsV,         &
+         basisIntegralsMetric,    &
+         basisIntegralsUTri,      &
+         basisIntegralsVTri,      &
+         basisIntegralsMetricTri, &
          tanLatVertexRotatedOverRadius, &
+         tanLatEdgeRotatedOverRadius,   &
          cellVerticesAtVertex, &
+         cellEdgesAtEdge,      &
+         triangleEdgesAtEdge,  &
          stress11,             &
          stress12,             &
          stress22              &
