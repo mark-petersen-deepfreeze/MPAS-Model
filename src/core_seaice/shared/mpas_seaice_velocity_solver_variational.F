@@ -31,6 +31,7 @@ module seaice_velocity_solver_variational
        seaice_average_strains_on_vertex, &
        seaice_stress_tensor_variational, &
        seaice_stress_divergence_variational, &
+       seaice_stress_divergence_variational_c_grid, &
        seaice_final_divergence_shear_variational
 
 contains
@@ -968,6 +969,8 @@ end subroutine variational_denominator_c_grid
 
   end subroutine seaice_strain_tensor_variational!}}}
 
+!-----------------------------------------------------------------------
+
   subroutine seaice_strain_tensor_variational_c_grid(&
        mesh, &
        strain11, &
@@ -1137,6 +1140,8 @@ end subroutine variational_denominator_c_grid
     deallocate(uVelocityEdge)
 
   end subroutine seaice_strain_tensor_variational_c_grid !}}}
+
+!-----------------------------------------------------------------------
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !
@@ -1651,6 +1656,194 @@ end subroutine variational_denominator_c_grid
     enddo ! iVertex
 
   end subroutine seaice_stress_divergence_variational!}}}
+
+!-----------------------------------------------------------------------
+
+  subroutine seaice_stress_divergence_variational_c_grid(&
+       mesh, &
+       stressDivergenceU, &
+       stressDivergenceV, &
+       stress11, &
+       stress22, &
+       stress12, &
+       stress11Tri, &
+       stress22Tri, &
+       stress12Tri, &
+       basisIntegralsU, &
+       basisIntegralsV, &
+       basisIntegralsMetric, &
+       basisIntegralsUTri, &
+       basisIntegralsVTri, &
+       basisIntegralsMetricTri, &
+       variationalDenominatorCGrid, &
+       tanLatEdgeRotatedOverRadius, &
+       cellEdgesAtEdge, &
+       triangleEdgesAtEdge)!{{{
+
+    use seaice_mesh_pool, only: &
+         nEdges, &
+         nEdgesOnCell, &
+         interiorEdge, &
+         cellsOnEdge,  &
+         verticesOnEdge, &
+         nCellsOnEdge, &
+         vertexDegree
+
+    type(MPAS_pool_type), pointer, intent(in) :: &
+         mesh !< Input:
+
+    real(kind=RKIND), dimension(:), intent(out) :: &
+         stressDivergenceU,    & !< Output:
+         stressDivergenceV       !< Output:
+
+    real(kind=RKIND), dimension(:,:), contiguous, intent(in) :: &
+         stress11,        & !< Input:
+         stress22,        & !< Input:
+         stress12,        & !< Input:
+         stress11Tri,     & !< Input:
+         stress22Tri,     & !< Input:
+         stress12Tri        !< Input:
+
+    real(kind=RKIND), dimension(:,:,:), contiguous, intent(in) :: &
+         basisIntegralsU,        &   !< Input:
+         basisIntegralsV,        &   !< Input:
+         basisIntegralsMetric,   &   !< Input:
+         basisIntegralsUTri,     &   !< Input:
+         basisIntegralsVTri,     &   !< Input:
+         basisIntegralsMetricTri     !< Input:
+
+    real(kind=RKIND), dimension(:), intent(in) :: &
+         tanLatEdgeRotatedOverRadius, & !< Input:
+         variationalDenominatorCGrid    !< Input:
+
+    integer, dimension(:,:), intent(in) :: &
+         cellEdgesAtEdge,     &   !< Input:
+         triangleEdgesAtEdge      !< Input:
+
+    real(kind=RKIND) :: &
+         stressDivergenceUEdge, &
+         stressDivergenceVEdge, &
+         stressDivergenceUCell, &
+         stressDivergenceVCell
+
+    integer :: &
+         iEdge, &
+         iCell, &
+         iVertex, &
+         iCellOnEdge, &
+         iTriangleOnEdge, &
+         iVelocityEdge, &
+         iStressEdge
+
+!!!!!!!!!! TODO: I DO NOT KNOW WHAT THIS BELOW IS
+
+    ! loop over velocity positions
+#ifdef MPAS_OPENMP_OFFLOAD
+!$omp target teams distribute parallel do
+#elif MPAS_OPENACC
+!$acc parallel loop gang worker
+#else
+!$omp parallel do default(shared) private(stressDivergenceUVertex, stressDivergenceVVertex, &
+!$omp&   iSurroundingCell, iCell, iVelocityVertex, stressDivergenceUCell, stressDivergenceVCell, iStressVertex)
+#endif
+
+
+    stressDivergenceU(:) = 0.0_RKIND
+    stressDivergenceV(:) = 0.0_RKIND
+
+    do iEdge = 1, nEdges
+
+       if (interiorEdge(iEdge)==1) then
+
+          stressDivergenceUEdge = 0.0_RKIND
+          stressDivergenceVEdge = 0.0_RKIND
+
+          ! loop over surrounding cells
+          do iCellOnEdge = 1, nCellsOnEdge(iEdge)
+
+             ! get the cell number of this cell
+             iCell = cellsOnEdge(iCellOnEdge, iEdge)
+
+             ! get the local index of iEdge on iCell 
+             iVelocityEdge = cellEdgesAtEdge(iCellOnEdge,iEdge)
+
+             stressDivergenceUCell = 0.0_RKIND
+             stressDivergenceVCell = 0.0_RKIND
+
+             ! loop over the edges of the surrounding cell
+             do iStressEdge = 1, nEdgesOnCell(iCell)
+
+                ! normal & metric terms
+                stressDivergenceUCell = stressDivergenceUCell - &
+                     stress11(iStressEdge,iCell) * basisIntegralsU(iStressEdge,iVelocityEdge,iCell) - &
+                     stress12(iStressEdge,iCell) * basisIntegralsV(iStressEdge,iVelocityEdge,iCell) - &
+                     stress12(iStressEdge,iCell) * basisIntegralsMetric(iStressEdge,iVelocityEdge,iCell) * &
+                     tanLatEdgeRotatedOverRadius(iEdge)
+
+                stressDivergenceVCell = stressDivergenceVCell - &
+                     stress22(iStressEdge,iCell) * basisIntegralsV(iStressEdge,iVelocityEdge,iCell) - &
+                     stress12(iStressEdge,iCell) * basisIntegralsU(iStressEdge,iVelocityEdge,iCell) + &
+                     stress11(iStressEdge,iCell) * basisIntegralsMetric(iStressEdge,iVelocityEdge,iCell) * &
+                     tanLatEdgeRotatedOverRadius(iVertex)
+
+             enddo ! iStressEdge
+
+             stressDivergenceUEdge = stressDivergenceUEdge + stressDivergenceUCell
+             stressDivergenceVEdge = stressDivergenceVEdge + stressDivergenceVCell
+
+          enddo ! iCellOnEdge
+
+          stressDivergenceU(iEdge) = stressDivergenceU(iEdge) + stressDivergenceUEdge / variationalDenominatorCGrid(iEdge)
+          stressDivergenceV(iEdge) = stressDivergenceV(iEdge) + stressDivergenceVEdge / variationalDenominatorCGrid(iEdge)
+
+          stressDivergenceUEdge = 0.0_RKIND
+          stressDivergenceVEdge = 0.0_RKIND
+
+          ! loop over surrounding triangles
+          do iTriangleOnEdge = 1, 2
+
+             ! get the vertex number of this triangle
+             iVertex = verticesOnEdge(iTriangleOnEdge, iEdge)
+
+             ! get the local index of iEdge on iCell
+             iVelocityEdge = triangleEdgesAtEdge(iTriangleOnEdge,iEdge)
+
+             stressDivergenceUCell = 0.0_RKIND
+             stressDivergenceVCell = 0.0_RKIND
+
+             ! loop over the edges of the surrounding triangle
+             do iStressEdge = 1, vertexDegree
+
+                ! normal & metric terms
+                stressDivergenceUCell = stressDivergenceUCell - & 
+                     stress11Tri(iStressEdge,iVertex) * basisIntegralsUTri(iStressEdge,iVelocityEdge,iVertex) - &
+                     stress12Tri(iStressEdge,iVertex) * basisIntegralsVTri(iStressEdge,iVelocityEdge,iVertex) - &
+                     stress12Tri(iStressEdge,iVertex) * basisIntegralsMetricTri(iStressEdge,iVelocityEdge,iVertex) * &
+                     tanLatEdgeRotatedOverRadius(iEdge)
+
+                stressDivergenceVCell = stressDivergenceVCell - &
+                     stress22Tri(iStressEdge,iVertex) * basisIntegralsVTri(iStressEdge,iVelocityEdge,iVertex) - &
+                     stress12Tri(iStressEdge,iVertex) * basisIntegralsUTri(iStressEdge,iVelocityEdge,iVertex) + &
+                     stress11Tri(iStressEdge,iVertex) * basisIntegralsMetricTri(iStressEdge,iVelocityEdge,iVertex) * &
+                     tanLatEdgeRotatedOverRadius(iVertex)
+
+             enddo ! iStressEdge
+
+             stressDivergenceUEdge = stressDivergenceUEdge + stressDivergenceUCell
+             stressDivergenceVEdge = stressDivergenceVEdge + stressDivergenceVCell
+
+          enddo ! iTriangleOnEdge
+
+          stressDivergenceU(iEdge) = stressDivergenceU(iEdge) + stressDivergenceUEdge / variationalDenominatorCGrid(iEdge)
+          stressDivergenceV(iEdge) = stressDivergenceV(iEdge) + stressDivergenceVEdge / variationalDenominatorCGrid(iEdge)
+
+       endif ! interiorEdge
+
+    enddo ! iEdge
+
+  end subroutine seaice_stress_divergence_variational_c_grid!}}}
+
+!-----------------------------------------------------------------------
 
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 !

@@ -2625,6 +2625,9 @@ contains
          stress11var => stress11, &
          stress22var => stress22, &
          stress12var => stress12, &
+         stress11varTri => stress11Tri, &
+         stress22varTri => stress22Tri, &
+         stress12varTri => stress12Tri, &
          tanLatVertexRotatedOverRadius, &
          tanLatEdgeRotatedOverRadius, &
          uVelocity, &
@@ -2640,6 +2643,7 @@ contains
          seaice_strain_tensor_variational_c_grid, &
          seaice_stress_tensor_variational, &
          seaice_stress_divergence_variational, &
+         seaice_stress_divergence_variational_c_grid, &
          seaice_average_strains_on_vertex
 
     type(domain_type), intent(inout) :: &
@@ -2733,15 +2737,12 @@ contains
           call MPAS_pool_get_array(velocityVariationalPool, "strain22", strain22var)
           call MPAS_pool_get_array(velocityVariationalPool, "strain12", strain12var)
 
-          if (config_use_c_grid == 0) then
-             call MPAS_pool_get_array(velocityVariationalPool, "replacementPressure", replacementPressureVar)
-             call MPAS_pool_get_array(velocityVariationalPool, "variationalDenominator", variationalDenominator)
-          else
-             call MPAS_pool_get_array(velocityVariationalPool, "strain11Tri", strain11varTri)
-             call MPAS_pool_get_array(velocityVariationalPool, "strain22Tri", strain22varTri)
-             call MPAS_pool_get_array(velocityVariationalPool, "strain12Tri", strain12varTri)
-             call MPAS_pool_get_array(velocityVariationalPool, "variationalDenominatorCGrid", variationalDenominatorCGrid)
-          end if
+          call MPAS_pool_get_array(velocityVariationalPool, "replacementPressure", replacementPressureVar)
+          call MPAS_pool_get_array(velocityVariationalPool, "variationalDenominator", variationalDenominator)
+          call MPAS_pool_get_array(velocityVariationalPool, "strain11Tri", strain11varTri)
+          call MPAS_pool_get_array(velocityVariationalPool, "strain22Tri", strain22varTri)
+          call MPAS_pool_get_array(velocityVariationalPool, "strain12Tri", strain12varTri)
+          call MPAS_pool_get_array(velocityVariationalPool, "variationalDenominatorCGrid", variationalDenominatorCGrid)
 
        endif
 
@@ -2883,20 +2884,43 @@ contains
        else if (stressDivergenceSchemeType == VARIATIONAL_STRESS_DIVERGENCE_SCHEME) then
 
           call mpas_timer_start("Velocity solver stress divergence")
-          call seaice_stress_divergence_variational(&
-               meshPool, &
-               stressDivergenceU, &
-               stressDivergenceV, &
-               stress11var, &
-               stress22var, &
-               stress12var, &
-               basisIntegralsU, &
-               basisIntegralsV, &
-               basisIntegralsMetric, &
-               variationalDenominator, &
-               tanLatVertexRotatedOverRadius, &
-               cellVerticesAtVertex, &
-               solveVelocity)
+          if (config_use_c_grid == 0) then
+             call seaice_stress_divergence_variational(&
+                  meshPool, &
+                  stressDivergenceU, &
+                  stressDivergenceV, &
+                  stress11var, &
+                  stress22var, &
+                  stress12var, &
+                  basisIntegralsU, &
+                  basisIntegralsV, &
+                  basisIntegralsMetric, &
+                  variationalDenominator, &
+                  tanLatVertexRotatedOverRadius, &
+                  cellVerticesAtVertex, &
+                  solveVelocity)
+          else
+             call seaice_stress_divergence_variational_c_grid(&
+                  meshPool, &
+                  stressDivergenceU, &
+                  stressDivergenceV, &
+                  stress11var, &
+                  stress22var, &
+                  stress12var, &
+                  stress11varTri, &
+                  stress22varTri, &
+                  stress12varTri, &
+                  basisIntegralsU, &
+                  basisIntegralsV, &
+                  basisIntegralsMetric, &
+                  basisIntegralsUTri, &
+                  basisIntegralsVTri, &
+                  basisIntegralsMetricTri, &
+                  variationalDenominatorCGrid, &
+                  tanLatEdgeRotatedOverRadius, &
+                  cellEdgesAtEdge, &
+                  triangleEdgesAtEdge)
+          end if 
           call mpas_timer_stop("Velocity solver stress divergence")
 
        endif

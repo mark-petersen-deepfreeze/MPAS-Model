@@ -29,8 +29,10 @@ module seaice_mesh_pool
 
    integer, public, dimension(:), pointer :: & 
       nEdgesOnCell,   &
+      nCellsOnEdge,   &
       solveStress,    &
-      solveVelocity
+      solveVelocity,  &
+      interiorEdge
 
    integer, public, dimension(:,:), pointer :: &
       verticesOnCell, &
@@ -38,6 +40,7 @@ module seaice_mesh_pool
       edgesOnCell,    &
       edgesOnVertex,  &
       verticesOnEdge, &
+      cellsOnEdge, &
       cellVerticesAtVertex, &
       cellEdgesAtEdge, &
       triangleEdgesAtEdge
@@ -55,7 +58,10 @@ module seaice_mesh_pool
    real(kind=RKIND), public, dimension(:,:), pointer :: &
       stress11,       &
       stress12,       &
-      stress22
+      stress22,       &
+      stress11Tri,    &
+      stress12Tri,    &
+      stress22Tri
 
    real(kind=RKIND), public, dimension(:,:,:), pointer :: &
       basisGradientU, &
@@ -138,12 +144,15 @@ contains
 
        ! point to existing arrays
        call mpas_pool_get_array(meshPool, 'nEdgesOnCell',   nEdgesOnCell)
+       call mpas_pool_get_array(meshPool, 'nCellsOnEdge',   nCellsOnEdge)
        call mpas_pool_get_array(meshPool, 'verticesOnCell', verticesOnCell)
        call mpas_pool_get_array(meshPool, 'cellsOnVertex',  cellsOnVertex)
        call mpas_pool_get_array(meshPool, 'edgesOnCell',  edgesOnCell)
        call mpas_pool_get_array(meshPool, 'edgesOnVertex',  edgesOnVertex)
        call mpas_pool_get_array(meshPool, 'verticesOnEdge',  verticesOnEdge)
+       call mpas_pool_get_array(meshPool, 'cellsOnEdge',  cellsOnEdge)
        call mpas_pool_get_array(meshPool, 'areaTriangle',   areaTriangle)
+       call mpas_pool_get_array(meshPool, 'interiorEdge',   interiorEdge)
 
        call MPAS_pool_get_array(velocitySolverPool, "solveStress",       solveStress)
        call MPAS_pool_get_array(velocitySolverPool, "solveVelocity",     solveVelocity)
@@ -168,9 +177,12 @@ contains
        call MPAS_pool_get_array(velocityVariationalPool, "cellVerticesAtVertex", cellVerticesAtVertex)
        call MPAS_pool_get_array(velocityVariationalPool, "cellEdgesAtEdge", cellEdgesAtEdge)
        call MPAS_pool_get_array(velocityVariationalPool, "triangleEdgesAtEdge", triangleEdgesAtEdge)
-       call MPAS_pool_get_array(velocityVariationalPool, "stress11",             stress11)
-       call MPAS_pool_get_array(velocityVariationalPool, "stress22",             stress22)
-       call MPAS_pool_get_array(velocityVariationalPool, "stress12",             stress12)
+       call MPAS_pool_get_array(velocityVariationalPool, "stress11", stress11)
+       call MPAS_pool_get_array(velocityVariationalPool, "stress22", stress22)
+       call MPAS_pool_get_array(velocityVariationalPool, "stress12", stress12)
+       call MPAS_pool_get_array(velocityVariationalPool, "stress11Tri", stress11Tri)
+       call MPAS_pool_get_array(velocityVariationalPool, "stress22Tri", stress22Tri)
+       call MPAS_pool_get_array(velocityVariationalPool, "stress12Tri", stress12Tri)
 
 #if defined(MPAS_OPENMP_OFFLOAD) || defined(MPAS_OPENACC)
 !$GPU ENTER_DATA COPY_IN_LP             &
@@ -180,12 +192,15 @@ contains
 !$GPUC   nVerticesSolve,                &
 !$GPUC   vertexDegree,                  &
 !$GPUC   nEdgesOnCell,                  &
+!$GPUC   nCellsOnEdge,                  &
 !$GPUC   verticesOnCell,                &
 !$GPUC   cellsOnVertex,                 &
 !$GPUC   edgesOnCell,                   &
 !$GPUC   edgesOnVertex,                 &
 !$GPUC   verticesOnEdge,                &
+!$GPUC   cellsOnEdge,                &
 !$GPUC   areaTriangle,                  &
+!$GPUC   interiorEdge,                  &
 !$GPUC   solveStress,                   &
 !$GPUC   solveVelocity,                 &
 !$GPUC   icePressure,                   &
@@ -210,6 +225,9 @@ contains
 !$GPUC   triangleEdgesAtEdge,           &
 !$GPUC   stress11,                      &
 !$GPUC   stress12,                      &
+!$GPUC   stress22,                      &
+!$GPUC   stress11Tri,                   &
+!$GPUC   stress12Tri,                   &
 !$GPUC   stress22                       &
 !$GPUF
 #endif
@@ -245,12 +263,15 @@ contains
 !$GPUC   nVerticesSolve,                &
 !$GPUC   vertexDegree,                  &
 !$GPUC   nEdgesOnCell,                  &
+!$GPUC   nCellsOnEdge,                  &
 !$GPUC   verticesOnCell,                &
 !$GPUC   cellsOnVertex,                 &
 !$GPUC   edgesOnCell,                   &
 !$GPUC   edgesOnVertex,                 &
 !$GPUC   verticesOnEdge,                &
+!$GPUC   cellsOnEdge,                &
 !$GPUC   areaTriangle,                  &
+!$GPUC   interiorEdge,                  &
 !$GPUC   solveStress,                   &
 !$GPUC   solveVelocity,                 &
 !$GPUC   icePressure,                   &
@@ -275,18 +296,24 @@ contains
 !$GPUC   triangleEdgesAtEdge            &
 !$GPUC   stress11,                      &
 !$GPUC   stress12,                      &
-!$GPUC   stress22                       &
+!$GPUC   stress22,                      &
+!$GPUC   stress11Tri,                   &
+!$GPUC   stress12Tri,                   &
+!$GPUC   stress22Tri                    &
 !$GPUF
 #endif
 
     ! then nullify on host
     nullify(nEdgesOnCell,         &
+         nCellsOnEdge,            &
          verticesOnCell,          &
          cellsOnVertex,           &
          edgesOnCell,             &
          edgesOnVertex,           &
          verticesOnEdge,          &
+         cellsOnEdge,          &
          areaTriangle,            &
+         interiorEdge,            &
          solveStress,             &
          solveVelocity,           &
          icePressure,             &
@@ -311,7 +338,10 @@ contains
          triangleEdgesAtEdge,  &
          stress11,             &
          stress12,             &
-         stress22              &
+         stress22,             &
+         stress11Tri,          &
+         stress12Tri,          &
+         stress22Tri           &
     )
 
   end subroutine seaice_mesh_pool_destroy!}}}
@@ -342,6 +372,9 @@ contains
 !$GPUC   stress11,      &
 !$GPUC   stress12,      &
 !$GPUC   stress22       &
+!$GPUC   stress11Tri,   &
+!$GPUC   stress12Tri,   &
+!$GPUC   stress22Tri    &
 !$GPUF
 #endif
 
