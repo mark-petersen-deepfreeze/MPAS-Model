@@ -2655,6 +2655,7 @@ contains
 
     type (MPAS_pool_type), pointer :: &
          meshPool, &
+         boundaryPool, &
          velocityWeakPool, &
          velocityVariationalPool, &
          velocityWeakVariationalPool, &
@@ -2929,6 +2930,7 @@ contains
           else
              call seaice_stress_divergence_variational_c_grid(&
                   meshPool, &
+                  boundaryPool, &
                   stressDivergenceU, &
                   stressDivergenceV, &
                   stress11var, &

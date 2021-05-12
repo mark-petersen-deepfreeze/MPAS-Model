@@ -2033,6 +2033,7 @@ end subroutine variational_denominator_c_grid
 
   subroutine seaice_stress_divergence_variational_c_grid(&
        mesh, &
+       boundary, &
        stressDivergenceU, &
        stressDivergenceV, &
        stress11, &
@@ -2055,13 +2056,13 @@ end subroutine variational_denominator_c_grid
     use seaice_mesh_pool, only: &
          nEdges, &
          nEdgesOnCell, &
-         interiorEdge, &
          cellsOnEdge,  &
          verticesOnEdge, &
          vertexDegree
 
     type(MPAS_pool_type), pointer, intent(in) :: &
-         mesh !< Input:
+         mesh, &   !< Input:
+         boundary  !< Input:
 
     real(kind=RKIND), dimension(:), intent(out) :: &
          stressDivergenceU,    & !< Output:
@@ -2091,6 +2092,9 @@ end subroutine variational_denominator_c_grid
          cellEdgesAtEdge,     &   !< Input:
          triangleEdgesAtEdge      !< Input:
 
+    integer, dimension(:), pointer :: &
+         interiorEdge   
+
     real(kind=RKIND) :: &
          stressDivergenceUEdge, &
          stressDivergenceVEdge, &
@@ -2107,6 +2111,8 @@ end subroutine variational_denominator_c_grid
          iStressEdge
 
 !!!!!!!!!! TODO: I REMOVED THE STUFF ON OpenMP
+
+    call MPAS_pool_get_array(boundary, "interiorEdge", interiorEdge)
 
     stressDivergenceU(:) = 0.0_RKIND
     stressDivergenceV(:) = 0.0_RKIND
