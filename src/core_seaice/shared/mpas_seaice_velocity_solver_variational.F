@@ -1244,27 +1244,32 @@ end subroutine variational_denominator_c_grid
 
              iEdge = edgesOnVertex(iBasisEdge,iVertex)
 
-             strain11Tmp = strain11Tmp + uVelocityEdge(iEdge) * basisGradientUTri(iBasisEdge,iGradientEdge,iVertex)
-             strain22Tmp = strain22Tmp + vVelocityEdge(iEdge) * basisGradientVTri(iBasisEdge,iGradientEdge,iVertex)
-             strain12Tmp = strain12Tmp + 0.5_RKIND * (&
-                           uVelocityEdge(iEdge) * basisGradientVTri(iBasisEdge,iGradientEdge,iVertex) + &
-                           vVelocityEdge(iEdge) * basisGradientUTri(iBasisEdge,iGradientEdge,iVertex))
+             if(iEdge .le. nEdges) then
+
+                strain11Tmp = strain11Tmp + uVelocityEdge(iEdge) * basisGradientUTri(iBasisEdge,iGradientEdge,iVertex)
+                strain22Tmp = strain22Tmp + vVelocityEdge(iEdge) * basisGradientVTri(iBasisEdge,iGradientEdge,iVertex)
+                strain12Tmp = strain12Tmp + 0.5_RKIND * (&
+                              uVelocityEdge(iEdge) * basisGradientVTri(iBasisEdge,iGradientEdge,iVertex) + &
+                              vVelocityEdge(iEdge) * basisGradientUTri(iBasisEdge,iGradientEdge,iVertex))
+             end if
 
           end do ! iEdgeOnVertex
 
           ! metric terms
           jEdge = edgesOnVertex(iGradientEdge,iVertex)
 
-          strain11Tri(iGradientEdge,iVertex) = strain11Tmp - vVelocityEdge(jEdge) * tanLatEdgeRotatedOverRadius(jEdge)
-          strain12Tri(iGradientEdge,iVertex) = strain12Tmp + uVelocityEdge(jEdge) * tanLatEdgeRotatedOverRadius(jEdge) * 0.5_RKIND
-          strain22Tri(iGradientEdge,iVertex) = strain22Tmp
+          if(jEdge .le. nEdges) then
+             strain11Tri(iGradientEdge,iVertex) = strain11Tmp - vVelocityEdge(jEdge) * tanLatEdgeRotatedOverRadius(jEdge)
+             strain12Tri(iGradientEdge,iVertex) = strain12Tmp + uVelocityEdge(jEdge) * tanLatEdgeRotatedOverRadius(jEdge) * 0.5_RKIND
+             strain22Tri(iGradientEdge,iVertex) = strain22Tmp
+          end if
 
        end do ! jEdgeOnVertex
 
     enddo ! iVertex
 
     deallocate(uVelocityEdge)
-    deallocate(uVelocityEdge)
+    deallocate(vVelocityEdge)
 
   end subroutine seaice_strain_tensor_variational_c_grid !}}}
 
@@ -1675,7 +1680,9 @@ end subroutine variational_denominator_c_grid
     allocate(icePressureTriCGrid(nVertices))
 
     ! TODO: this has to be handled properly in the future
-    icePressureCellCGrid(:) = icePressure(:)
+    do iCell = 1, nCells
+       icePressureCellCGrid(iCell) = icePressure(iCell)
+    end do
     icePressureTriCGrid(:) = 0.0_RKIND
      
     do iVertex = 1, nVertices
