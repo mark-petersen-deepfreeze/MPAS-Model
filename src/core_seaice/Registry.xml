@@ -3745,11 +3745,16 @@
 		<var name="stress11var"			type="real"	dimensions="maxEdges nCells Time"		name_in_code="stress11"/>
 		<var name="stress22var"			type="real"	dimensions="maxEdges nCells Time"		name_in_code="stress22"/>
 		<var name="stress12var"			type="real"	dimensions="maxEdges nCells Time"		name_in_code="stress12"/>
+		<var name="stress11varTri"	        type="real"	dimensions="R3 nVertices Time"    		name_in_code="stress11Tri"/>
+		<var name="stress22varTri"		type="real"	dimensions="R3 nVertices Time"	        	name_in_code="stress22Tri"/>
+		<var name="stress12varTri"		type="real"	dimensions="R3 nVertices Time"	        	name_in_code="stress12Tri"/>
 		<var name="tanLatVertexRotatedOverRadius"	type="real"	dimensions="nVertices"				name_in_code="tanLatVertexRotatedOverRadius"/>
 		<var name="tanLatEdgeRotatedOverRadius"	type="real"	dimensions="nEdges"				name_in_code="tanLatEdgeRotatedOverRadius"/>
 		<var name="cellVerticesAtVertex"		type="integer"	dimensions="vertexDegree nVertices"		name_in_code="cellVerticesAtVertex"/>
 		<var name="cellEdgesAtEdge"	         	type="integer"	dimensions="TWO nEdges"          		name_in_code="cellEdgesAtEdge"/>
 		<var name="triangleEdgesAtEdge"	        	type="integer"	dimensions="TWO nEdges"          		name_in_code="triangleEdgesAtEdge"/>
+		<var name="areaCellCGrid"	        	type="real"	dimensions="nCells"              		name_in_code="areaCellCGrid"/>
+		<var name="areaTriCGrid"	        	type="real"	dimensions="nVertices"              		name_in_code="areaTriCGrid"/>
 		<var name="basisIntegralsU"			type="real"	dimensions="maxEdges maxEdges nCells"		name_in_code="basisIntegralsU"/>
 		<var name="basisIntegralsV"			type="real"	dimensions="maxEdges maxEdges nCells"		name_in_code="basisIntegralsV"/>
 		<var name="basisIntegralsMetric"		type="real"	dimensions="maxEdges maxEdges nCells"		name_in_code="basisIntegralsMetric"/>
@@ -3760,11 +3765,12 @@
 		<var name="basisGradientV"			type="real"	dimensions="maxEdges maxEdges nCells"		name_in_code="basisGradientV"/>
 		<var name="basisGradientUTri"			type="real"	dimensions="R3 R3 nVertices"		name_in_code="basisGradientUTri"/>
 		<var name="basisGradientVTri"			type="real"	dimensions="R3 R3 nVertices"		name_in_code="basisGradientVTri"/>
-		<var name="principalStress1Var"		type="real"	dimensions="maxEdges nCells Time"		name_in_code="principalStress1"/>
-		<var name="principalStress2Var"		type="real"	dimensions="maxEdges nCells Time"		name_in_code="principalStress2"/>
+		<var name="principalStress1Var"		        type="real"	dimensions="maxEdges nCells Time"		name_in_code="principalStress1"/>
+		<var name="principalStress2Var"		        type="real"	dimensions="maxEdges nCells Time"		name_in_code="principalStress2"/>
 		<var name="replacementPressureVar"		type="real"	dimensions="maxEdges nCells Time"		name_in_code="replacementPressure"/>
-		<var name="variationalDenominator"	type="real"	dimensions="nVertices"				name_in_code="variationalDenominator"/>
-		<var name="variationalDenominatorCGrid"	type="real"	dimensions="nEdges"				name_in_code="variationalDenominatorCGrid"/>
+		<var name="replacementPressureVarTri"		type="real"	dimensions="R3 nVertices Time"		name_in_code="replacementPressureTri"/>
+		<var name="variationalDenominator"	        type="real"	dimensions="nVertices"				name_in_code="variationalDenominator"/>
+		<var name="variationalDenominatorCGrid"  type="real"	dimensions="nEdges"				name_in_code="variationalDenominatorCGrid"/>
 	</var_struct>
 
 	<!-- weak strain / variational stress divergence -->

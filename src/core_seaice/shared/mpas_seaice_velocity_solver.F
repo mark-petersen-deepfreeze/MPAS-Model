@@ -2642,6 +2642,7 @@ contains
          seaice_strain_tensor_variational, &
          seaice_strain_tensor_variational_c_grid, &
          seaice_stress_tensor_variational, &
+         seaice_stress_tensor_variational_c_grid, &
          seaice_stress_divergence_variational, &
          seaice_stress_divergence_variational_c_grid, &
          seaice_average_strains_on_vertex
@@ -2684,6 +2685,7 @@ contains
 
     real(kind=RKIND), dimension(:,:), pointer :: &
          replacementPressureVar, &
+         replacementPressureVarTri, &
          strain11var, &
          strain22var, &
          strain12var, &
@@ -2739,10 +2741,13 @@ contains
 
           call MPAS_pool_get_array(velocityVariationalPool, "replacementPressure", replacementPressureVar)
           call MPAS_pool_get_array(velocityVariationalPool, "variationalDenominator", variationalDenominator)
-          call MPAS_pool_get_array(velocityVariationalPool, "strain11Tri", strain11varTri)
-          call MPAS_pool_get_array(velocityVariationalPool, "strain22Tri", strain22varTri)
-          call MPAS_pool_get_array(velocityVariationalPool, "strain12Tri", strain12varTri)
-          call MPAS_pool_get_array(velocityVariationalPool, "variationalDenominatorCGrid", variationalDenominatorCGrid)
+          if (config_use_c_grid == 1) then
+             call MPAS_pool_get_array(velocityVariationalPool, "strain11Tri", strain11varTri)
+             call MPAS_pool_get_array(velocityVariationalPool, "strain22Tri", strain22varTri)
+             call MPAS_pool_get_array(velocityVariationalPool, "strain12Tri", strain12varTri)
+             call MPAS_pool_get_array(velocityVariationalPool, "replacementPressureTri", replacementPressureVarTri)
+             call MPAS_pool_get_array(velocityVariationalPool, "variationalDenominatorCGrid", variationalDenominatorCGrid)
+          end if
 
        endif
 
@@ -2849,18 +2854,40 @@ contains
        else if (stressDivergenceSchemeType == VARIATIONAL_STRESS_DIVERGENCE_SCHEME) then
 
           call mpas_timer_start("Velocity solver stress tensor")
-          call seaice_stress_tensor_variational(&
-               meshPool, &
-               stress11var, &
-               stress22var, &
-               stress12var, &
-               strain11var, &
-               strain22var, &
-               strain12var, &
-               icePressure, &
-               replacementPressureVar, &
-               solveStress, &
-               elasticTimeStep)
+          if (config_use_c_grid == 0) then
+             call seaice_stress_tensor_variational(&
+                  meshPool, &
+                  stress11var, &
+                  stress22var, &
+                  stress12var, &
+                  strain11var, &
+                  strain22var, &
+                  strain12var, &
+                  icePressure, &
+                  replacementPressureVar, &
+                  solveStress, &
+                  elasticTimeStep)
+          else 
+             call seaice_stress_tensor_variational_c_grid(&
+                  meshPool, &
+                  velocityVariationalPool, &
+                  stress11var, &
+                  stress22var, &
+                  stress12var, &
+                  stress11varTri, &
+                  stress22varTri, &
+                  stress12varTri, &
+                  strain11var, &
+                  strain22var, &
+                  strain12var, &
+                  strain11varTri, &
+                  strain22varTri, &
+                  strain12varTri, &
+                  icePressure, &
+                  replacementPressureVar, &
+                  replacementPressureVarTri, &
+                  elasticTimeStep)
+          end if
           call mpas_timer_stop("Velocity solver stress tensor")
 
        endif
