@@ -228,7 +228,7 @@ contains
 !$GPUC   stress22,                      &
 !$GPUC   stress11Tri,                   &
 !$GPUC   stress12Tri,                   &
-!$GPUC   stress22                       &
+!$GPUC   stress22Tri                    &
 !$GPUF
 #endif
 
