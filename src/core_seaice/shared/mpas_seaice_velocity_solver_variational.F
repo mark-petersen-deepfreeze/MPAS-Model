@@ -187,7 +187,6 @@ contains
 
     integer, dimension(:), pointer :: &
          nEdgesOnCell, &
-         nCellsOnEdge, &
          interiorVertex
 
     integer, dimension(:,:), pointer :: &
@@ -246,7 +245,6 @@ contains
     call MPAS_pool_get_dimension(mesh, "maxEdges", maxEdges)
 
     call MPAS_pool_get_array(mesh, "nEdgesOnCell", nEdgesOnCell)
-    call MPAS_pool_get_array(mesh, "nCellsOnEdge", nCellsOnEdge)
     call MPAS_pool_get_array(mesh, "verticesOnCell", verticesOnCell)
     call MPAS_pool_get_array(mesh, "verticesOnEdge", verticesOnEdge)
     call MPAS_pool_get_array(mesh, "cellsOnVertex", cellsOnVertex)
@@ -496,7 +494,6 @@ contains
             nCells, &
             nVertices, &
             nEdgesOnCell, &
-            nCellsOnEdge, &
             xCell, &
             yCell, &
             zCell, &
@@ -642,7 +639,6 @@ contains
        nCells, &
        nVertices, &
        nEdgesOnCell, &
-       nCellsOnEdge, &
        xCell, &
        yCell, &
        zCell, &
@@ -681,8 +677,7 @@ contains
          on_a_sphere !< Input:
 
     integer, dimension(:), intent(in) :: &
-         nEdgesOnCell, &   !<Input:
-         nCellsOnEdge   !<Input:
+         nEdgesOnCell     !<Input:
 
     integer, dimension(:,:), intent(in) :: &
          cellsOnEdge, &     !<Input:
@@ -771,7 +766,7 @@ contains
           laVert2 = latVertex(vertOnEdge2)
           loVert2 = lonVertex(vertOnEdge2)
 
-          do iCellOnEdge = 1, nCellsOnEdge(iEdge)
+          do iCellOnEdge = 1, 2
 
              cellOnEdge = cellsOnEdge(iCellOnEdge, iEdge)
              laCell = latCell(cellOnEdge)             
@@ -829,7 +824,7 @@ contains
           yv2 = yVertex(vertOnEdge2)
           zv2 = zVertex(vertOnEdge2)
 
-          do iCellOnEdge = 1, nCellsOnEdge(iEdge)
+          do iCellOnEdge = 1, 2
 
              cellOnEdge = cellsOnEdge(iCellOnEdge, iEdge)
              xc = xCell(cellOnEdge)
@@ -2063,7 +2058,6 @@ end subroutine variational_denominator_c_grid
          interiorEdge, &
          cellsOnEdge,  &
          verticesOnEdge, &
-         nCellsOnEdge, &
          vertexDegree
 
     type(MPAS_pool_type), pointer, intent(in) :: &
@@ -2125,7 +2119,7 @@ end subroutine variational_denominator_c_grid
           stressDivergenceVEdge = 0.0_RKIND
 
           ! loop over surrounding cells
-          do iCellOnEdge = 1, nCellsOnEdge(iEdge)
+          do iCellOnEdge = 1, 2
 
              ! get the cell number of this cell
              iCell = cellsOnEdge(iCellOnEdge, iEdge)

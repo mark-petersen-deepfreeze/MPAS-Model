@@ -29,7 +29,6 @@ module seaice_mesh_pool
 
    integer, public, dimension(:), pointer :: & 
       nEdgesOnCell,   &
-      nCellsOnEdge,   &
       solveStress,    &
       solveVelocity,  &
       interiorEdge
@@ -144,7 +143,6 @@ contains
 
        ! point to existing arrays
        call mpas_pool_get_array(meshPool, 'nEdgesOnCell',   nEdgesOnCell)
-       call mpas_pool_get_array(meshPool, 'nCellsOnEdge',   nCellsOnEdge)
        call mpas_pool_get_array(meshPool, 'verticesOnCell', verticesOnCell)
        call mpas_pool_get_array(meshPool, 'cellsOnVertex',  cellsOnVertex)
        call mpas_pool_get_array(meshPool, 'edgesOnCell',  edgesOnCell)
@@ -192,7 +190,6 @@ contains
 !$GPUC   nVerticesSolve,                &
 !$GPUC   vertexDegree,                  &
 !$GPUC   nEdgesOnCell,                  &
-!$GPUC   nCellsOnEdge,                  &
 !$GPUC   verticesOnCell,                &
 !$GPUC   cellsOnVertex,                 &
 !$GPUC   edgesOnCell,                   &
@@ -263,7 +260,6 @@ contains
 !$GPUC   nVerticesSolve,                &
 !$GPUC   vertexDegree,                  &
 !$GPUC   nEdgesOnCell,                  &
-!$GPUC   nCellsOnEdge,                  &
 !$GPUC   verticesOnCell,                &
 !$GPUC   cellsOnVertex,                 &
 !$GPUC   edgesOnCell,                   &
@@ -305,7 +301,6 @@ contains
 
     ! then nullify on host
     nullify(nEdgesOnCell,         &
-         nCellsOnEdge,            &
          verticesOnCell,          &
          cellsOnVertex,           &
          edgesOnCell,             &
