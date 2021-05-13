@@ -2041,8 +2041,8 @@ end subroutine variational_denominator_c_grid
   subroutine seaice_stress_divergence_variational_c_grid(&
        mesh, &
        boundary, &
-       stressDivergenceU, &
-       stressDivergenceV, &
+       stressDivergenceUCGrid, &
+       stressDivergenceVCGrid, &
        stress11, &
        stress22, &
        stress12, &
@@ -2072,8 +2072,8 @@ end subroutine variational_denominator_c_grid
          boundary  !< Input:
 
     real(kind=RKIND), dimension(:), intent(out) :: &
-         stressDivergenceU,    & !< Output:
-         stressDivergenceV       !< Output:
+         stressDivergenceUCGrid,    & !< Output:
+         stressDivergenceVCGrid       !< Output:
 
     real(kind=RKIND), dimension(:,:), contiguous, intent(in) :: &
          stress11,        & !< Input:
@@ -2121,8 +2121,8 @@ end subroutine variational_denominator_c_grid
 
     call MPAS_pool_get_array(boundary, "interiorEdge", interiorEdge)
 
-    stressDivergenceU(:) = 0.0_RKIND
-    stressDivergenceV(:) = 0.0_RKIND
+    stressDivergenceUCGrid(:) = 0.0_RKIND
+    stressDivergenceVCGrid(:) = 0.0_RKIND
 
     do iEdge = 1, nEdges
 
@@ -2157,7 +2157,7 @@ end subroutine variational_denominator_c_grid
                      stress22(iStressEdge,iCell) * basisIntegralsV(iStressEdge,iVelocityEdge,iCell) - &
                      stress12(iStressEdge,iCell) * basisIntegralsU(iStressEdge,iVelocityEdge,iCell) + &
                      stress11(iStressEdge,iCell) * basisIntegralsMetric(iStressEdge,iVelocityEdge,iCell) * &
-                     tanLatEdgeRotatedOverRadius(iVertex)
+                     tanLatEdgeRotatedOverRadius(iEdge)
 
              enddo ! iStressEdge
 
@@ -2166,8 +2166,8 @@ end subroutine variational_denominator_c_grid
 
           enddo ! iCellOnEdge
 
-          stressDivergenceU(iEdge) = stressDivergenceU(iEdge) + stressDivergenceUEdge / variationalDenominatorCGrid(iEdge)
-          stressDivergenceV(iEdge) = stressDivergenceV(iEdge) + stressDivergenceVEdge / variationalDenominatorCGrid(iEdge)
+          stressDivergenceUCGrid(iEdge) = stressDivergenceUCGrid(iEdge) + stressDivergenceUEdge / variationalDenominatorCGrid(iEdge)
+          stressDivergenceVCGrid(iEdge) = stressDivergenceVCGrid(iEdge) + stressDivergenceVEdge / variationalDenominatorCGrid(iEdge)
 
           stressDivergenceUEdge = 0.0_RKIND
           stressDivergenceVEdge = 0.0_RKIND
@@ -2207,8 +2207,8 @@ end subroutine variational_denominator_c_grid
 
           enddo ! iTriangleOnEdge
 
-          stressDivergenceU(iEdge) = stressDivergenceU(iEdge) + stressDivergenceUEdge / variationalDenominatorCGrid(iEdge)
-          stressDivergenceV(iEdge) = stressDivergenceV(iEdge) + stressDivergenceVEdge / variationalDenominatorCGrid(iEdge)
+          stressDivergenceUCGrid(iEdge) = stressDivergenceUCGrid(iEdge) + stressDivergenceUEdge / variationalDenominatorCGrid(iEdge)
+          stressDivergenceVCGrid(iEdge) = stressDivergenceVCGrid(iEdge) + stressDivergenceVEdge / variationalDenominatorCGrid(iEdge)
 
        endif ! interiorEdge
 

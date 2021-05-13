@@ -2666,7 +2666,9 @@ contains
 
     real(kind=RKIND), dimension(:), pointer :: &
          stressDivergenceU, &
-         stressDivergenceV
+         stressDivergenceV, &
+         stressDivergenceUCGrid, &
+         stressDivergenceVCGrid
 
     real(kind=RKIND), dimension(:), pointer :: &
          replacementPressureWeak, &
@@ -2707,6 +2709,7 @@ contains
     do while (associated(blockPtr))
 
        call MPAS_pool_get_subpool(blockPtr % structs, "mesh", meshPool)
+       call MPAS_pool_get_subpool(blockPtr % structs, "boundary", boundaryPool)
        call MPAS_pool_get_subpool(blockPtr % structs, "velocity_weak", velocityWeakPool)
        call MPAS_pool_get_subpool(blockPtr % structs, "velocity_variational", velocityVariationalPool)
        call MPAS_pool_get_subpool(blockPtr % structs, "velocity_weak_variational", velocityWeakVariationalPool)
@@ -2715,6 +2718,8 @@ contains
        call MPAS_pool_get_array(velocitySolverPool, "elasticTimeStep", elasticTimeStep)
        call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceU", stressDivergenceU)
        call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceV", stressDivergenceV)
+       call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceUCGrid", stressDivergenceUCGrid)
+       call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceVCGrid", stressDivergenceVCGrid)
 
        if (strainSchemeType           == WEAK_STRAIN_SCHEME .or. &
            stressDivergenceSchemeType == WEAK_STRESS_DIVERGENCE_SCHEME) then
@@ -2931,8 +2936,8 @@ contains
              call seaice_stress_divergence_variational_c_grid(&
                   meshPool, &
                   boundaryPool, &
-                  stressDivergenceU, &
-                  stressDivergenceV, &
+                  stressDivergenceUCGrid, &
+                  stressDivergenceVCGrid, &
                   stress11var, &
                   stress22var, &
                   stress12var, &

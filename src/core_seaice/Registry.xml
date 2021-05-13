@@ -3696,6 +3696,8 @@
 		<var name="icePressure"		        	type="real"	dimensions="nCells Time"		name_in_code="icePressure"/>
 		<var name="stressDivergenceU"			type="real"	dimensions="nVertices Time"		name_in_code="stressDivergenceU"/>
 		<var name="stressDivergenceV"			type="real"	dimensions="nVertices Time"		name_in_code="stressDivergenceV"/>
+		<var name="stressDivergenceUCGrid"		type="real"	dimensions="nEdges Time"		name_in_code="stressDivergenceUCGrid"/>
+		<var name="stressDivergenceVCGrid"		type="real"	dimensions="nEdges Time"		name_in_code="stressDivergenceVCGrid"/>
 		<var name="airStressCellU"			type="real"	dimensions="nCells Time"		name_in_code="airStressCellU"/>
 		<var name="airStressCellV"			type="real"	dimensions="nCells Time"		name_in_code="airStressCellV"/>
 		<var name="airStressVertexU"			type="real"	dimensions="nVertices Time"		name_in_code="airStressVertexU"/>
