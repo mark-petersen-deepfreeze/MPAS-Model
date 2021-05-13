@@ -352,7 +352,7 @@ contains
 
     allocate(nEdgesOnVertex(nVertices))
 
-    nEdgesOnVertex(:) = vertexDegree !NOTE: assuming vertexDegree is = 3 always.
+    nEdgesOnVertex(:) = vertexDegree 
 
     if (config_use_c_grid == 0) then
        call seaice_calc_local_coords(&
