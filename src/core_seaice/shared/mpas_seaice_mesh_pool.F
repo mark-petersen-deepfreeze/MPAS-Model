@@ -30,8 +30,7 @@ module seaice_mesh_pool
    integer, public, dimension(:), pointer :: & 
       nEdgesOnCell,   &
       solveStress,    &
-      solveVelocity,  &
-      interiorEdge
+      solveVelocity
 
    integer, public, dimension(:,:), pointer :: &
       verticesOnCell, &
@@ -150,7 +149,6 @@ contains
        call mpas_pool_get_array(meshPool, 'verticesOnEdge',  verticesOnEdge)
        call mpas_pool_get_array(meshPool, 'cellsOnEdge',  cellsOnEdge)
        call mpas_pool_get_array(meshPool, 'areaTriangle',   areaTriangle)
-       call mpas_pool_get_array(meshPool, 'interiorEdge',   interiorEdge)
 
        call MPAS_pool_get_array(velocitySolverPool, "solveStress",       solveStress)
        call MPAS_pool_get_array(velocitySolverPool, "solveVelocity",     solveVelocity)
@@ -195,9 +193,8 @@ contains
 !$GPUC   edgesOnCell,                   &
 !$GPUC   edgesOnVertex,                 &
 !$GPUC   verticesOnEdge,                &
-!$GPUC   cellsOnEdge,                &
+!$GPUC   cellsOnEdge,                   &
 !$GPUC   areaTriangle,                  &
-!$GPUC   interiorEdge,                  &
 !$GPUC   solveStress,                   &
 !$GPUC   solveVelocity,                 &
 !$GPUC   icePressure,                   &
@@ -267,7 +264,6 @@ contains
 !$GPUC   verticesOnEdge,                &
 !$GPUC   cellsOnEdge,                &
 !$GPUC   areaTriangle,                  &
-!$GPUC   interiorEdge,                  &
 !$GPUC   solveStress,                   &
 !$GPUC   solveVelocity,                 &
 !$GPUC   icePressure,                   &
@@ -308,7 +304,6 @@ contains
          verticesOnEdge,          &
          cellsOnEdge,          &
          areaTriangle,            &
-         interiorEdge,            &
          solveStress,             &
          solveVelocity,           &
          icePressure,             &
