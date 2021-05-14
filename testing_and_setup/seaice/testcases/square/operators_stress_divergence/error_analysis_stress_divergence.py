@@ -22,9 +22,11 @@ def error_analysis_stress_divergence():
     fileout = open("error_report_stress_divergence.txt","w")
 
 
-    gridTypes = ["hex","quad"]
-    grids = {"hex" :"0082x0094",
-             "quad":"0080x0080"}
+    #gridTypes = ["hex","quad"]
+    #grids = {"hex" :"0082x0094",
+    #         "quad":"0080x0080"}
+    gridTypes = ["hex"]
+    grids = {"hex" :"0082x0094"}
     for gridType in gridTypes:
 
         print("GridType: ", gridType)
@@ -80,7 +82,8 @@ def error_analysis_stress_divergence():
         fileout.write("  dcEdge: %f\n" %(dcEdge))
 
 
-        basises = ["wachspress","pwl"]
+        #basises = ["wachspress","pwl"]
+        basises = ["wachspress"]
         for basis in basises:
 
             print("   ",basis)

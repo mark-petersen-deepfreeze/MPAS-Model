@@ -204,7 +204,8 @@ def create_ic(gridfile, icfile):
 
 def create_ics():
 
-    gridTypes = ["hex","quad"]
+#    gridTypes = ["hex","quad"]
+    gridTypes = ["hex"]
 
 #    grids = {"hex": ["0082x0094",
 #                     "0164x0188",
@@ -215,8 +216,10 @@ def create_ics():
 #                     "0320x0320",
 #                     "0640x0640"]}
 
-    grids = {"hex": ["0082x0094"],
-             "quad":["0080x0080"]}
+#    grids = {"hex": ["0082x0094"],
+#             "quad":["0080x0080"]}
+
+    grids = {"hex": ["0082x0094"]}
 
     for gridType in gridTypes:
         for grid in grids[gridType]:
