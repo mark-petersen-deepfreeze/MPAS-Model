@@ -2137,7 +2137,7 @@ end subroutine variational_denominator_c_grid
              ! get the cell number of this cell
              iCell = cellsOnEdge(iCellOnEdge, iEdge)
 
-             ! get the local index of iEdge on iCell 
+             ! get the local index of iEdge on iCellOnEdge 
              iVelocityEdge = cellEdgesAtEdge(iCellOnEdge,iEdge)
 
              stressDivergenceUCell = 0.0_RKIND
@@ -2178,7 +2178,7 @@ end subroutine variational_denominator_c_grid
              ! get the vertex number of this triangle
              iVertex = verticesOnEdge(iTriangleOnEdge, iEdge)
 
-             ! get the local index of iEdge on iCell
+             ! get the local index of iEdge on iTriangleOnEdge
              iVelocityEdge = triangleEdgesAtEdge(iTriangleOnEdge,iEdge)
 
              stressDivergenceUCell = 0.0_RKIND
