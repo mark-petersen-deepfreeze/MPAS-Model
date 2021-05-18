@@ -63,7 +63,6 @@ def error_analysis_stress_divergence():
         dvEdge = filegrid.variables["dvEdge"][:]
         areaCell = filegrid.variables["areaCell"][:]
         areaTriangle = filegrid.variables["areaTriangle"][:]
-        varDenCGrid = filegrid.variables["variationalDenominatorCGrid"][:]
 
         filegrid.close()
 
@@ -98,6 +97,7 @@ def error_analysis_stress_divergence():
             cellEdgesAtEdge[:] = cellEdgesAtEdge[:] - 1
             triangleEdgesAtEdge = filein.variables["triangleEdgesAtEdge"][:]
             triangleEdgesAtEdge[:] = triangleEdgesAtEdge[:] - 1
+            varDenCGrid = filein.variables["variationalDenominatorCGrid"][:]
 
             filein.close()
 
@@ -138,10 +138,10 @@ def error_analysis_stress_divergence():
                     # get the local index of iEdge on iSurroundingTri
                     iVelocityEdge = triangleEdgesAtEdge[iEdgeTest,iSurroundingTri]
 
-                    # loop over the vertices of the surrounding triangle
+                    # loop over the edges of the surrounding triangle
                     for iStressEdge in range(0,vertexDegree):
 
-                        iEdge = verticesOnEdge[iVertex,iStressEdge]
+                        iEdge = edgesOnVertex[iVertex,iStressEdge]
 
                         dx = xEdge[iEdge] - xEdge[iEdgeTest]
                         dy = yEdge[iEdge] - yEdge[iEdgeTest]
