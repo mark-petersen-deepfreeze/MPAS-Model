@@ -71,13 +71,26 @@ def error_analysis_stress_divergence():
         print("  Variational:")
         fileout.write("  Variational:\n")
 
-        #iVertexTest = 1123
-        iEdgeTest = 1553 #it is one of the edgesOnVertex of vertex 1123 (with both enumerations statrting from 0)
+        iVertexTest = 1123
+        print("  iVertexTest: ",iVertexTest)
+        fileout.write("  iVertexTest: %i\n" %(iVertexTest))
+        for iCellOnVertex in range(0, vertexDegree):
+            print("  iCell: ", iCellOnVertex, cellsOnVertex[iVertexTest,iCellOnVertex])
+            fileout.write("  iCell: %i %i\n" %(iCellOnVertex, cellsOnVertex[iVertexTest,iCellOnVertex]))
+
+        print(edgesOnVertex[iVertexTest,0])
+        print(edgesOnVertex[iVertexTest,1])
+        print(edgesOnVertex[iVertexTest,2])
+
+        iEdgeTest = 1554 #it is one of the edgesOnVertex of vertex 1123 (with both enumerations starting from 0)
         print("  iEdgeTest: ",iEdgeTest)
         fileout.write("  iEdgeTest: %i\n" %(iEdgeTest))
         for iCellOnEdge in range(0, 2):
             print("  iCell: ", iCellOnEdge, cellsOnEdge[iEdgeTest,iCellOnEdge])
             fileout.write("  iCell: %i %i\n" %(iCellOnEdge, cellsOnEdge[iEdgeTest,iCellOnEdge]))
+
+        print("xVertex[iVertexTest]=",xVertex[iVertexTest],"yVertex[iVertexTest]=",yVertex[iVertexTest])
+        print("xEdge[iEdgeTest]=",xEdge[iEdgeTest],"yEdge[iEdgeTest]=",yEdge[iEdgeTest])
 
         #basises = ["wachspress","pwl"]
         basises = ["wachspress"]
@@ -126,8 +139,15 @@ def error_analysis_stress_divergence():
 
                         fTerm = coeff[iTerm] * pow(dx,dxPow[iTerm]) * pow(dy,dyPow[iTerm])
 
+                        if iTerm == 1:
+                           print("iCell=",iCell,"iStressEdge=",iStressEdge)
+                           print("before=",dfdy[iTerm])
+                           print(fTerm, basisIntegralsV[iCell,iVelocityEdge,iStressEdge], -fTerm * basisIntegralsV[iCell,iVelocityEdge,iStressEdge]/ varDenCGrid[iEdgeTest])
                         dfdx[iTerm] -= (fTerm * basisIntegralsU[iCell,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest]
                         dfdy[iTerm] -= (fTerm * basisIntegralsV[iCell,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest]
+                        if iTerm == 1:
+                           print("after=",dfdy[iTerm])
+           
 
                 # loop over surrounding triangles
                 for iSurroundingTri in range(0,2):
@@ -148,8 +168,14 @@ def error_analysis_stress_divergence():
 
                         fTerm = coeff[iTerm] * pow(dx,dxPow[iTerm]) * pow(dy,dyPow[iTerm])
 
+                        if iTerm == 1:
+                           print("before=",dfdy[iTerm])
+                           print("iTriangle=",iVertex,"iStressEdge=",iStressEdge)
+                           print(dfdy[iTerm], fTerm, basisIntegralsVTri[iVertex,iVelocityEdge,iStressEdge], -fTerm * basisIntegralsVTri[iVertex,iVelocityEdge,iStressEdge]/ varDenCGrid[iEdgeTest])
                         dfdx[iTerm] -= (fTerm * basisIntegralsUTri[iVertex,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest]
                         dfdy[iTerm] -= (fTerm * basisIntegralsVTri[iVertex,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest]
+                        if iTerm == 1:
+                           print("after=",dfdy[iTerm])
 
             dfdxAvg = np.mean(dfdx,axis=0)
             dfdyAvg = np.mean(dfdy,axis=0)
