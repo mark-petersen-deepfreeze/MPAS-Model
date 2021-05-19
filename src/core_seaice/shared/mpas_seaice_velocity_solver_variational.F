@@ -488,6 +488,7 @@ contains
             on_a_sphere, &
             sphere_radius, &
             cellsOnEdge, &
+            edgesOnCell, &
             verticesOnEdge, &
             edgesOnVertex, &
             nEdges, &
@@ -633,6 +634,7 @@ contains
        on_a_sphere, &
        sphere_radius, &
        cellsOnEdge, &
+       edgesOnCell, &
        verticesOnEdge, &
        edgesOnVertex, &
        nEdges, &
@@ -681,6 +683,7 @@ contains
 
     integer, dimension(:,:), intent(in) :: &
          cellsOnEdge, &     !<Input:
+         edgesOnCell, &     !<Input:
          verticesOnEdge, &  !<Input:
          edgesOnVertex      !<Input:
 
@@ -785,10 +788,10 @@ contains
 
              jEdge = seaice_wrapped_index(iEdge + 1, nEdgesOnCell(iCell))
 
-             laEdge1 = latEdge(iEdge)
-             loEdge1 = lonEdge(iEdge)
-             laEdge2 = latEdge(jEdge)
-             loEdge2 = lonEdge(jEdge)
+             laEdge1 = latEdge(edgesOnCell(iEdge,iCell))
+             loEdge1 = lonEdge(edgesOnCell(iEdge,iCell))
+             laEdge2 = latEdge(edgesOnCell(jEdge,iCell))
+             loEdge2 = lonEdge(edgesOnCell(jEdge,iCell))
              laCell = latCell(iCell)
              loCell = lonCell(iCell)
 
@@ -844,12 +847,12 @@ contains
 
              jEdge = seaice_wrapped_index(iEdge + 1, nEdgesOnCell(iCell))
 
-             xe1 = xEdge(iEdge)
-             ye1 = yEdge(iEdge) 
-             ze1 = zEdge(iEdge)
-             xe2 = xEdge(jEdge)
-             ye2 = yEdge(jEdge)
-             ze2 = zEdge(jEdge)
+             xe1 = xEdge(edgesOnCell(iEdge,iCell))
+             ye1 = yEdge(edgesOnCell(iEdge,iCell)) 
+             ze1 = zEdge(edgesOnCell(iEdge,iCell))
+             xe2 = xEdge(edgesOnCell(jEdge,iCell))
+             ye2 = yEdge(edgesOnCell(jEdge,iCell))
+             ze2 = zEdge(edgesOnCell(jEdge,iCell))
              xc = xCell(iCell)
              yc = yCell(iCell)
              zc = zCell(iCell)
@@ -1175,11 +1178,6 @@ end subroutine variational_denominator_c_grid
          uVelocityEdge, &
          vVelocityEdge
 
-    integer :: &   !TODO: add to namelist
-         config_use_c_grid
-
-    config_use_c_grid = 1
-
     allocate(uVelocityEdge(nEdges))
     allocate(vVelocityEdge(nEdges))
 
@@ -1188,8 +1186,8 @@ end subroutine variational_denominator_c_grid
        vertexOnEdge1 = verticesOnEdge(1,iEdge)
        vertexOnEdge2 = verticesOnEdge(2,iEdge)
 
-       uVelocityEdge(iEdge) = 0.5 * (uVelocity(vertexOnEdge1) + uVelocity(vertexOnEdge2))
-       vVelocityEdge(iEdge) = 0.5 * (vVelocity(vertexOnEdge1) + vVelocity(vertexOnEdge2))
+       uVelocityEdge(iEdge) = 0.5_RKIND * (uVelocity(vertexOnEdge1) + uVelocity(vertexOnEdge2))
+       vVelocityEdge(iEdge) = 0.5_RKIND * (vVelocity(vertexOnEdge1) + vVelocity(vertexOnEdge2))
 
     end do
 
@@ -1690,7 +1688,7 @@ end subroutine variational_denominator_c_grid
        do iCellsOnVertex = 1, vertexDegree
 
           iCell = cellsOnVertex(iCellsOnVertex,iVertex)
-          icePressureTriCGrid(iVertex) = icePressureTriCGrid(iVertex) + (1.0 / 3.0) * icePressure(iCell)
+          icePressureTriCGrid(iVertex) = icePressureTriCGrid(iVertex) + (1.0_RKIND / 3.0_RKIND) * icePressure(iCell)
 
        end do
 

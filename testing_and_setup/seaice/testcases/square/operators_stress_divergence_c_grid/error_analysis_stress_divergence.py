@@ -104,13 +104,17 @@ def error_analysis_stress_divergence():
 
             basisIntegralsU = filein.variables["basisIntegralsU"][:]
             basisIntegralsV = filein.variables["basisIntegralsV"][:]
+            basisIntegralsMetric = filein.variables["basisIntegralsMetric"][:]
             basisIntegralsUTri = filein.variables["basisIntegralsUTri"][:]
             basisIntegralsVTri = filein.variables["basisIntegralsVTri"][:]
+            basisIntegralsMetricTri = filein.variables["basisIntegralsMetricTri"][:]
             cellEdgesAtEdge = filein.variables["cellEdgesAtEdge"][:]
             cellEdgesAtEdge[:] = cellEdgesAtEdge[:] - 1
             triangleEdgesAtEdge = filein.variables["triangleEdgesAtEdge"][:]
             triangleEdgesAtEdge[:] = triangleEdgesAtEdge[:] - 1
             varDenCGrid = filein.variables["variationalDenominatorCGrid"][:]
+            areaCellCGrid = filein.variables["areaCellCGrid"][:]
+            areaTriCGrid = filein.variables["areaTriCGrid"][:]
 
             filein.close()
 
@@ -140,13 +144,21 @@ def error_analysis_stress_divergence():
                         fTerm = coeff[iTerm] * pow(dx,dxPow[iTerm]) * pow(dy,dyPow[iTerm])
 
                         if iTerm == 1:
-                           print("iCell=",iCell,"iStressEdge=",iStressEdge)
                            print("before=",dfdy[iTerm])
-                           print(fTerm, basisIntegralsV[iCell,iVelocityEdge,iStressEdge], -fTerm * basisIntegralsV[iCell,iVelocityEdge,iStressEdge]/ varDenCGrid[iEdgeTest])
+                           print("iCell=",iCell,"iStressEdge=",iStressEdge)
+                           print(dfdy[iTerm], fTerm, basisIntegralsV[iCell,iVelocityEdge,iStressEdge], -fTerm * basisIntegralsV[iCell,iVelocityEdge,iStressEdge]/ varDenCGrid[iEdgeTest])
                         dfdx[iTerm] -= (fTerm * basisIntegralsU[iCell,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest]
                         dfdy[iTerm] -= (fTerm * basisIntegralsV[iCell,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest]
                         if iTerm == 1:
                            print("after=",dfdy[iTerm])
+
+                    #CHECK
+                    areaCheck = 0.0
+                    for i in range(0,nEdgesOnCell[iCell]):
+                       for j in range(0,nEdgesOnCell[iCell]):
+                          areaCheck += basisIntegralsMetric[iCell,i,j]
+                    if iTerm == 0:
+                       print("cell=", iCell, "areaCell=", areaCell[iCell], "areaCheck=", areaCheck, "areaCellCGrid=", areaCellCGrid[iCell], "diff=", abs(areaCheck-areaCellCGrid[iCell]))
            
 
                 # loop over surrounding triangles
@@ -176,6 +188,14 @@ def error_analysis_stress_divergence():
                         dfdy[iTerm] -= (fTerm * basisIntegralsVTri[iVertex,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest]
                         if iTerm == 1:
                            print("after=",dfdy[iTerm])
+
+                    #CHECK
+                    areaCheck = 0.0
+                    for i in range(0,vertexDegree):
+                       for j in range(0,vertexDegree):
+                          areaCheck += basisIntegralsMetricTri[iVertex,i,j]
+                    if iTerm == 0:
+                       print("triangle=", iVertex, "areaCheck=", areaCheck, "areaTriCGrid=", areaTriCGrid[iVertex], "diff=", abs(areaCheck-areaTriCGrid[iVertex]))
 
             dfdxAvg = np.mean(dfdx,axis=0)
             dfdyAvg = np.mean(dfdy,axis=0)

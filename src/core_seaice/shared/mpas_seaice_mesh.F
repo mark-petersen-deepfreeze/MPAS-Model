@@ -3930,10 +3930,10 @@ contains
       a = sphere_distance(laPointThree, loPointThree, laPointTwo, loPointTwo, radius)
       b = sphere_distance(laPointThree, loPointThree, laPointOne, loPointOne, radius)
       c = sphere_distance(laPointOne, loPointOne, laPointTwo, loPointTwo, radius)
-      s = 0.5*(a+b+c)
+      s = 0.5_RKIND*(a+b+c)
 
-      tanqe = sqrt(tan(0.5*s)*tan(0.5*(s-a))*tan(0.5*(s-b))*tan(0.5*(s-c)))
-      spherical_triangle_area = 4.*atan(tanqe)*radius*radius
+      tanqe = sqrt(tan(0.5_RKIND*s)*tan(0.5_RKIND*(s-a))*tan(0.5_RKIND*(s-b))*tan(0.5_RKIND*(s-c)))
+      spherical_triangle_area = 4.0_RKIND * atan(tanqe)*radius*radius
 
    end function spherical_triangle_area
 
@@ -3993,9 +3993,9 @@ contains
 
       real (kind=RKIND) :: arg1
 
-      arg1 = sqrt( sin(0.5*(lat2-lat1))**2 +  &
-                   cos(lat1)*cos(lat2)*sin(0.5*(lon2-lon1))**2 )
-      sphere_distance = 2.*radius*asin(arg1)
+      arg1 = sqrt( sin(0.5_RKIND*(lat2-lat1))**2 +  &
+                   cos(lat1)*cos(lat2)*sin(0.5_RKIND*(lon2-lon1))**2 )
+      sphere_distance = 2.0_RKIND*radius*asin(arg1)
 
    end function sphere_distance
 
