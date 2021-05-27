@@ -239,18 +239,22 @@
                             description="Positive relaxation parameter for driving the model horizontal velocity towards the data; must be < 2/dt"
                             possible_values="Any positive real value."
                  />
-		<nml_option name="config_input_temp_obs_file" type="character" default_value="15_fld_TEMP.nc" units="unitless"
+		<nml_option name="config_input_obs_file" type="character" default_value="obs_data_0.5x0.5degree.nc" units="unitless"
 			description="Path to gridded observed data file."
-			possible_values="Path to file tag 15_fld_TEMP.nc; example file is ISAS15_DM_20020115_fld_TEMP.nc."
+			possible_values="Path to file, generally titled obs_data_0.5x0.5degree.nc."
 		/>
-		<nml_option name="config_input_psal_obs_file" type="character" default_value="15_fld_PSAL.nc" units="unitless"
-			description="Path to gridded observed data file."
-			possible_values="Path to file tag 15_fld_PSAL.nc; example file is ISAS15_DM_20020115_fld_PSAL.nc."
-		/>
-		<nml_option name="config_input_cell_mask_obs_file" type="character" default_value="data_mask.nc" units="unitless"
-			description="Path to gridded observed data masking file."
-			possible_values="Path to data_mask.nc."
-		/>
+                <nml_option name="config_input_interp_file" type="character" default_value="interp_data_0.5x0.5degree.nc" units="unitless"
+                        description="Path to gridded data from previous time step file."
+                        possible_values="Path to file, generally titled interp_data_0.5x0.5degree.nc."
+                />
+                <nml_option name="config_cell_mask_file" type="character" default_value="cell_mask.nc" units="unitless"
+                        description="Path to cell_mask file for testing."
+                        possible_values="/lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/isopycnal_3layer_compil+interp/ocean/soma/32km/3layer/forward/output/cell_mask.nc"
+                />
+                <nml_option name="config_cell_mask_obs_file" type="character" default_value="cell_mask_8km.nc" units="unitless"
+                        description="Path to cell_mask file for testing."
+                        possible_values="/lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/isopycnal_3layer_compil+interp/ocean/soma/32km/3layer/forward/output/cell_mask_8km.nc"
+                />
        </nml_record>
 	<nml_record name="time_integration" mode="forward">
 		<nml_option name="config_dt" type="character" default_value="00:05:00" units="unitless"

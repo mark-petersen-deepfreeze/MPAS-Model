@@ -37,7 +37,7 @@ model = /usr/projects/climate/ecarlson10/repos/MPAS-Model-AOT-Develop/ocean_mode
 # some test cases might download data into them, which will then be reused if
 # the test case is run again later.
 mpas_model = /usr/projects/climate/ecarlson10/repos/MPAS-Model-AOT-Develop
-geometric_data = /turquoise/usr/projects/climate/mpeterse/repos/geometric_features/master/geometric_data 
+geometric_data = /turquoise/usr/projects/climate/mpeterse/repos/geometric_features/master/geometric_data
 mesh_database = /usr/projects/regionalclimate/COMMON_MPAS/ocean/grids/mesh_database 
-initial_condition_database = /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/init_step1_isopycnal/empty_bath_and_ic_dir
-bathymetry_database = /lustre/scratch4/turquoise/ecarlson10/mpas_ocean_runs/mpas_o_soma_tests/ocean_32_km/soma/32km/default/init_step1_isopycnal/empty_bath_and_ic_dir 
+initial_condition_database = /usr/projects/regionalclimate/COMMON_MPAS/ocean/grids/initial_condition_database
+bathymetry_database = /lustre/scratch4/turquoise/mpeterse/bathymetry_database 
