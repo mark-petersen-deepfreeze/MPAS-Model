@@ -120,7 +120,7 @@ module ocn_time_integration
 
       type (domain_type), intent(inout) :: domain
       real (kind=RKIND), intent(in) :: dt
-      integer :: lat_obsGrid0_tag, lon_obsGrid0_tag, dep_obsGrid0_tag, iLat_tag, iLon_tag, iDep_tag
+      integer :: LatLon_tag!lat_obsGrid0_tag, lon_obsGrid0_tag, dep_obsGrid0_tag, iLat_tag, iLon_tag
       integer, intent(in) :: itimestep
       character(len=*), intent(in) :: timeStamp
 
@@ -136,7 +136,7 @@ module ocn_time_integration
       real (kind=RKIND) :: tolerance, distance!_bottom_left, distance_bottom_right, distance_top_left, distance_top_right
 
       real (kind=RKIND), dimension(:,:), allocatable :: wgtMatrix
-      type(dspmat), pointer :: dspmtx1, dspmtx2, dspmtx3, dspmtx4, dspmtx5, dspmtx6
+      type(dspmat), pointer :: dspmtx1, dspmtx2, dspmtx3, dspmtx4, dspmtx5, dspmtx6, dspmtxLatLon
       integer :: wgtMatrix_M2O1, wgtMatrix_M2O2, wgtMatrix_M2O3, wgtMatrix_M2O4, wgtMatrix_M2O5, wgtMatrix_M2O6
       real (kind=RKIND), dimension(:), allocatable ::  wgtMatrix_M2O7, wgtMatrix_M2O8, wgtMatrix_M2O9, procoutMatrix
       real (kind=RKIND), dimension(:), pointer :: latCell, lonCell, cell_mask_interp
@@ -153,7 +153,8 @@ module ocn_time_integration
       character (len=StrKIND) :: modifiedGroupName, modifiedConfigName
       logical, pointer :: config_AOT_DA_on, config_use_activeTracers_AOT_data_assimilation 
       integer, pointer :: indexTemperature, indexSalinity, nEdges, nCells, nEdges_obs, nCells_obs, nVertLevels
-      integer :: new_timestep, iErr, i, j, iCell, iVertLevels, iLat, iLon, iDep, daysinyear
+      integer :: new_timestep, iErr, i, j, iCell, iVertLevels, iLat, iLon, iDep, daysinyear, LatLonIdxLen
+      real (kind=RKIND), dimension(:), allocatable :: LatLonIdxMtx, LatLonIdxMtx_true
 
       real (kind=RKIND), dimension(1,1) :: matrix
 
@@ -204,12 +205,13 @@ module ocn_time_integration
       !call call_twice(lat_obs, lon_obs, dep_obs, nLat_obs, nLon_obs, nVertLevels_obs, domain, iErr)
 
       if (itimestep .eq. 1 .and. config_AOT_DA_on) then
-          call partition_obsgrid(lat_obsGrid0_tag, lon_obsGrid0_tag, iLat_tag, iLon_tag, domain, iErr)
+          call partition_obsgrid(LatLon_tag, domain, iErr)
           month = 1
           tick = 2 ! the dataset begins in 2002; adjust accordingly (easy reference: 2000 was a leap year)
 
           !! We only need to call this once, so we call it here !!
-          call interp_MPAS_to_ObsGrid(meshPool, verticalMeshPool, lat_obs, lon_obs, dep_obs, nLat_obs, nLon_obs, nVertLevels_obs, wgtMatrix_M2O1, wgtMatrix_M2O2, wgtMatrix_M2O3, wgtMatrix_M2O4, wgtMatrix_M2O5, wgtMatrix_M2O6, wgtMatrix_M2O7, wgtMatrix_M2O8, wgtMatrix_M2O9, procoutMatrix, domain, iErr)
+          !call interp_MPAS_to_ObsGrid(meshPool, verticalMeshPool, lat_obs, lon_obs, dep_obs, nLat_obs, nLon_obs, nVertLevels_obs, wgtMatrix_M2O1, wgtMatrix_M2O2, wgtMatrix_M2O3, wgtMatrix_M2O4, wgtMatrix_M2O5, wgtMatrix_M2O6, wgtMatrix_M2O7, wgtMatrix_M2O8, wgtMatrix_M2O9, procoutMatrix, domain, iErr)
+
       endif
 
      ! since the data is going to be coming in on a basis that is irregular, and
@@ -217,7 +219,7 @@ module ocn_time_integration
      ! to construct a timer here based on itimestep (there ought to be a nice
      ! way to generalize this, will use the ESMF timer to help us with this
 
-     if (config_AOT_DA_on .and. itimestep .gt. 1) then 
+     if (config_AOT_DA_on .and. itimestep .gt. 1 .and. rank == 0) then 
 
          if (modulo(tick,4) == 0) then
             daysinyear = 366
@@ -244,6 +246,38 @@ module ocn_time_integration
          enddo
 
      endif
+
+!call MPI_Barrier(MPI_COMM_WORLD)
+
+            !do iLat=1,nLat_obs
+            !  do iLon=1,nLon_obs
+                 if (rank == 1) then !procoutMatrix(iLat+iLon+iDep-2)) then
+                     call accessdata(dspmtxLatLon, LatLon_tag, iErr)
+                     LatLonIdxLen = size(dspmtxLatLon%IA1)
+                     LatLonIdxMtx = dspmtxLatLon%A
+                     print*, maxval(LatLonIdxMtx), minval(LatLonIdxMtx)
+                     call MPI_Send(LatLonIdxLen, 1, MPI_INTEGER, 0, 0, dminfo % comm, iErr) 
+                     call MPI_Send(LatLonIdxMtx, LatLonIdxLen, MPI_REAL, 0, 1, dminfo % comm, iErr)
+                 endif
+                 if (rank == 0) then
+                    call MPI_Recv(LatLonIdxLen, 1, MPI_INTEGER, 1, 0, dminfo % comm, MPI_STATUS_IGNORE, iErr)
+                    call MPI_Recv(LatLonIdxMtx, LatLonIdxLen, MPI_REAL, 1, 1, dminfo % comm, MPI_STATUS_IGNORE, iErr)
+                    !LatLonIdxMtx_true = LatLonIdxMtx+1.0
+                    !print*, LatLonIdxLen
+                    print*, maxval(LatLonIdxMtx), minval(LatLonIdxMtx)
+                    !print*, maxval(LatLonIdxMtx_true), minval(LatLonIdxMtx_true)
+
+                    !temp_tmp = temp_obs % array*LatLonIndxMtx! (iLat, iLon, iDep,1)
+                    !psal_tmp = psal_obs % array*LatLonIndxMtx ! (iLat, iLon, iDep,1)
+                    !call MPI_Send( )
+                    !call MPI_Send( )
+                 endif
+             ! enddo
+            !enddo
+
+
+                    
+          call interp_MPAS_to_ObsGrid(meshPool, verticalMeshPool, lat_obs, lon_obs, dep_obs, nLat_obs, nLon_obs, nVertLevels_obs, wgtMatrix_M2O1, wgtMatrix_M2O2, wgtMatrix_M2O3, wgtMatrix_M2O4, wgtMatrix_M2O5, wgtMatrix_M2O6, wgtMatrix_M2O7, wgtMatrix_M2O8, wgtMatrix_M2O9, procoutMatrix, domain, iErr)
 
      if (config_use_activeTracers_AOT_data_assimilation .and. config_AOT_DA_on .and. itimestep .gt. 1) then
          if (1==1) then !(modulo(daysSinceStartOfSim + 15.0, real(month_day(month), kind=RKIND)) == 0) then 
@@ -309,6 +343,7 @@ module ocn_time_integration
                               temp_mpas_interp_to_obsgrid(1, iDep, iLat, iLon) = 1e34 ! fill_value 
                               psal_mpas_interp_to_obsgrid(1, iDep, iLat, iLon) = 1e34 ! fill_value 
                            else
+                             if (itimestep .eq. 1) then
                               call accessdata(dspmtx1, wgtMatrix_M2O1, iErr)
                               call accessdata(dspmtx2, wgtMatrix_M2O2, iErr)
                               call accessdata(dspmtx3, wgtMatrix_M2O3, iErr)
@@ -328,6 +363,7 @@ module ocn_time_integration
                               !distance_bottom_right = wgtMatrix_M2O(iLat+iLon+iDep-2, 11)
                               !distance_top_left     = wgtMatrix_M2O(iLat+iLon+iDep-2, 12)
                               !distance_top_right    = wgtMatrix_M2O(iLat+iLon+iDep-2, 13)
+                             endif
        
                               !print*, lat_obs % array(iLat), lon_obs % array (iLon)
                               !print*, latCell(bottom_left_M2O), lonCell(bottom_left_M2O)
@@ -640,6 +676,7 @@ module ocn_time_integration
                 print*, latCell(-1)
 
              endif   
+
                 call interp_ObsGrid_to_MPAS(meshPool, verticalMeshPool, lat_obs, lon_obs, dep_obs, nLat_obs, nLon_obs, nVertLevels_obs, wgtMatrix, domain, iErr)
                 ! interpolate observed data  and MPAS interpolated data back to MPAS grid
                 do iVertLevels = 1,nVertLevels
@@ -1090,7 +1127,7 @@ subroutine read_obs_grid_dims(domain, iErr)
  
 end subroutine read_obs_grid_dims
 
-subroutine partition_obsgrid(lat_obsGrid0_tag, lon_obsGrid0_tag, iLat_tag, iLon_tag, domain, iErr) !lat_obs, lon_obs, dep_obs, nLat_obs, nLon_obs, nVertLevels_obs, domain, iErr)
+subroutine partition_obsgrid(LatLon_tag, domain, iErr) !lat_obs, lon_obs, dep_obs, nLat_obs, nLon_obs, nVertLevels_obs, domain, iErr)
       type (domain_type), intent(inout) :: domain
       integer, intent(inout) :: iErr
 !      type (field1DReal) :: lat_obs, lon_obs, dep_obs !, intent(inout)
@@ -1110,10 +1147,11 @@ subroutine partition_obsgrid(lat_obsGrid0_tag, lon_obsGrid0_tag, iLat_tag, iLon_
       real (kind=RKIND), allocatable, dimension(:) :: latCell_tmp, lonCell_tmp, refZMid_tmp, latCell_positive, latCell_negative, lonCell_left, lonCell_right
       !real (kind=RKIND), allocatable, dimension(:) :: lat_obsGrid0, lon_obsGrid0, dep_obsGrid0
       !real (kind=RKIND), dimension(1) :: lat_obsGrid0_val, lon_obsGrid0_val, dep_obsGrid0_val
-      integer, intent(out) :: lat_obsGrid0_tag, lon_obsGrid0_tag, iLat_tag, iLon_tag
-      integer :: iLat_tag_tmp, iLon_tag_tmp, iDep_tag_tmp
-      real (kind=RKIND), dimension(1) :: iLat_entry, iLon_entry
-      type(dspmat ), pointer :: dspmtx
+      integer :: lat_obsGrid0_tag, lon_obsGrid0_tag, iLat_tag, iLon_tag
+      integer, intent(out) :: LatLon_tag 
+      real (kind=RKIND), dimension(1) :: LatLon_entry
+      type(dspmat ), pointer :: dspmtxLatLon
+      real (kind=RKIND), dimension(1) :: zero
 
       type (dm_info) :: dminfo
       type (block_type), pointer :: block
@@ -1127,8 +1165,7 @@ subroutine partition_obsgrid(lat_obsGrid0_tag, lon_obsGrid0_tag, iLat_tag, iLon_
 
       iErr=0
 
-      iLat_entry(1) = 1
-      iLon_entry(1) = 1
+      LatLon_entry(1) = 0
 
       !allocate ( nLat_indices(nLat_obs) )
       !allocate ( nLon_indices(nLon_obs) )
@@ -1190,28 +1227,11 @@ subroutine partition_obsgrid(lat_obsGrid0_tag, lon_obsGrid0_tag, iLat_tag, iLon_
       !! forever later
       call read_obs_grid_dims(domain, iErr)
 
-      ! only define the lat_obsGrid0 on processor 0, do for all dims
-      !allocate (lat_obsGrid0(nLat_obs))
-      !allocate (lon_obsGrid0(nLon_obs))
-      !allocate (dep_obsGrid0(nVertLevels_obs))
-      !lat_obsGrid0 = 0.0!lat_obs % array
-      !lon_obsGrid0 = 0.0!lon_obs % array
-      !dep_obsGrid0 = 0.0!dep_obs % array
-
-      !if (rank == 0) then
-      !   lat_obsGrid0 = lat_obs % array
-      !   lon_obsGrid0 = lon_obs % array
-      !   dep_obsGrid0 = dep_obs % array
-      !   allocate (iCell_matrix(nLat_obs, nLon_obs, nVertLevels_obs))
-      !   allocate (procout_matrix(nLat_obs, nLon_obs, nVertLevels_obs))
-      !endif
-
-      !print*, latCell(-1)
-
-call duscr_begin(1,nLat_obs, lat_obsGrid0_tag, iErr)
-call duscr_begin(1,nLon_obs, lon_obsGrid0_tag, iErr)
-call duscr_begin(1,nLat_obs, iLat_tag, iErr)
-call duscr_begin(1,nLon_obs, iLon_tag, iErr)
+      !call duscr_begin(1,nLat_obs, lat_obsGrid0_tag, iErr)
+      !call duscr_begin(1,nLon_obs, lon_obsGrid0_tag, iErr)
+      !call duscr_begin(1,nLat_obs, iLat_tag, iErr)
+      !call duscr_begin(1,nLon_obs, iLon_tag, iErr)
+      call duscr_begin(nLat_obs,nLon_obs, LatLon_tag, iErr)
 
 !      do iDep = 1,nVertLevels_obs
          do iLat = 1,nLat_obs
@@ -1235,64 +1255,97 @@ call duscr_begin(1,nLon_obs, iLon_tag, iErr)
                iCell_loc_1 = minloc((latCell_tmp-lat_obs % array (iLat))**2 + (lonCell_tmp-lon_obs % array (iLon))**2)
                call mpas_dmpar_minloc_int(domain % dminfo, iCell_loc_1(1), iCell_loc_1Global, procout)
 
-               !if (rank == 0) then
-               !   print*, maxval(lat_obs % array)
-               !endif
-
                if (rank == procout) then 
 
-                  call uscr_insert_entry(lat_obsGrid0_tag, lat_obs % array (iLat), 1, iLat, iErr) 
-                  call uscr_insert_entry(lon_obsGrid0_tag, lon_obs % array (iLon), 1, iLon, iErr) 
+                  !call uscr_insert_entry(lat_obsGrid0_tag, lat_obs % array (iLat), 1, iLat, iErr) 
+                  !call uscr_insert_entry(lon_obsGrid0_tag, lon_obs % array (iLon), 1, iLon, iErr) 
 
-                  call uscr_insert_entry(iLat_tag, iLat_entry(1), 1, iLat, iErr)
-                  call uscr_insert_entry(iLon_tag, iLon_entry(1), 1, iLon, iErr)
+                  !call uscr_insert_entry(iLat_tag, iLat_entry(1), 1, iLat, iErr)
+                  !call uscr_insert_entry(iLon_tag, iLon_entry(1), 1, iLon, iErr)
 
-                  !call MPI_Send(iCell_loc_1Global, 1, MPI_REAL, 0, 0, MPI_COMM_WORLD, iErr)
-                  !call MPI_Send(procout, 1, MPI_REAL, 0, 0, MPI_COMM_WORLD, iErr)
-                  !call MPI_Send(iCell_matrix(iLat,iLon,iDep), 1, MPI_REAL, 0, 0, MPI_COMM_WORLD, iErr)
-                  !call MPI_Send(procout_matrix(iLat,iLon,iDep), 1, MPI_REAL, 0, 0, MPI_COMM_WORLD, iErr)
-                  !lat_obsGrid0(iLat) = lat_obs % array (iLat)
-                  !lon_obsGrid0(iLon) = lon_obs % array (iLon)
-                  !dep_obsGrid0(iDep) = dep_obs % array (iDep)
+                  if (iLat ==  1 .and. iLon == 1) then
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), nLat_obs, nLon_obs, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), nLat_obs, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), nLat_obs, iLon+1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, nLon_obs, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon+1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat+1, nLon_obs, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat+1, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat+1, iLon+1, iErr)
+                  elseif (iLat == 1) then
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), nLat_obs, iLon-1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), nLat_obs, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), nLat_obs, iLon+1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon-1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon+1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat+1, iLon-1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat+1, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat+1, iLon+1, iErr)
+                 elseif (iLon == 1) then
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat-1, nLon_obs, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat-1, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat-1, iLon+1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, nLon_obs, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon+1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat+1, nLon_obs, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat+1, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat+1, iLon+1, iErr)
+                 elseif (iLat == nLat_obs .and. iLon == nLon_obs) then
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat-1, iLon-1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat-1, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat-1, 1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon-1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, 1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), 1, iLon-1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), 1, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), 1, 1, iErr)
+                 elseif (iLat == nLat_obs) then
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat-1, iLon-1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat-1, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat-1, iLon+1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon-1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon+1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), 1, iLon-1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), 1, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), 1, iLon+1, iErr)
+                 elseif (iLon == nLon_obs) then
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat-1, iLon-1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat-1, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat-1, 1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon-1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, 1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat+1, iLon-1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat+1, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat+1, 1, iErr)
+                 else
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat-1, iLon-1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat-1, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat-1, iLon+1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon-1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat, iLon+1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat+1, iLon-1, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat+1, iLon, iErr)
+                     call uscr_insert_entry(LatLon_tag, LatLon_entry(1), iLat+1, iLon+1, iErr)
+                 endif
                endif
 
-               !if (rank == 0) then
-               !   call MPI_Recv(iCell_loc_1Global, 1, MPI_REAL, 0, 0, MPI_COMM_WORLD, iErr)
-               !   call MPI_Recv(procout, 1, MPI_REAL, 0, 0, MPI_COMM_WORLD, iErr)
-               !   iCell_matrix(iLat,iLon,iDep) = iCell_loc_1Global
-               !   procout_matrix(iLat,iLon,iDep) = procout
-               !   call MPI_Send(lat_obsGrid0(iLat), 1, MPI_REAL, 0, 0, MPI_COMM_WORLD, iErr)
-               !   call MPI_Send(lon_obsGrid0(iLon), 1, MPI_REAL, 0, 0, MPI_COMM_WORLD, iErr)
-               !   call MPI_Send(dep_obsGrid0(iDep), 1, MPI_REAL, 0, 0, MPI_COMM_WORLD, iErr)
-               !endif
-
-               !if (rank == procout) then
-               !   call MPI_Send(lat_obsGrid0(iLat), 1, MPI_REAL, 0, 0, MPI_COMM_WORLD, iErr)
-               !   call MPI_Send(lon_obsGrid0(iLon), 1, MPI_REAL, 0, 0, MPI_COMM_WORLD, iErr)
-               !   call MPI_Send(dep_obsGrid0(iDep), 1, MPI_REAL, 0, 0, MPI_COMM_WORLD, iErr)
-               !endif
-
-               !print*, maxval(lat_obsGrid0), maxval(lon_obsGrid0), maxval(dep_obsGrid0)
-               !print*, latCell(-1)
             enddo
          enddo
 !      enddo
 
 !!!!!! BE CAREFUL! THIS WILL FREAK OUT IF YOU NEVER ASSIGNED ANYTHING TO THE TAG !!!!!!!
-call uscr_end(lat_obsGrid0_tag, iErr)
-call uscr_end(lon_obsGrid0_tag, iErr)
-call uscr_end(iLat_tag, iErr)
-call uscr_end(iLon_tag, iErr)
-
-
- !if (rank ==0) then
- !call accessdata( dspmtx, lat_obsGrid0_tag, iErr)
- !print*, minval(dspmtx%A), maxval(dspmtx%A)
- !print*, latCell(-1)
- !endif
-
-      !print*, maxval(lat_obsGrid0), maxval(lon_obsGrid0), maxval(dep_obsGrid0)
-      !print*, latCell(-1)
+!call uscr_end(lat_obsGrid0_tag, iErr)
+!call uscr_end(lon_obsGrid0_tag, iErr)
+!call uscr_end(iLat_tag, iErr)
+!call uscr_end(iLon_tag, iErr)
+call uscr_end(LatLon_tag, iErr)
 
 end subroutine partition_obsgrid
 

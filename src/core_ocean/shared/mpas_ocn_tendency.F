@@ -394,10 +394,13 @@ contains
          call mpas_pool_get_array(forcingPool, 'velocityMeridional_obs', velocityMeridional_obs)
          ! Data from previous time step interpolated onto a rectangular grid,
          ! interpolated back to MPAS grid
-         !call mpas_pool_get_array(forcingPool, 'velocityZonal_interp', velocityZonal_interp)
-         !call mpas_pool_get_array(forcingPool, 'velocityMeridional_interp', velocityMeridional_interp)
+         
          call mpas_pool_get_array(forcingPool, 'velocityZonal_interp', velocityZonal_interp)
          call mpas_pool_get_array(forcingPool, 'velocityMeridional_interp', velocityMeridional_interp)
+         !!!!!!!! NUDGING ONLY !!!!!!
+         !call mpas_pool_get_array(diagnosticsPool, 'velocityZonal', velocityZonal_interp)
+         !call mpas_pool_get_array(diagnosticsPool, 'velocityMeridional', velocityMeridional_interp)
+         !!!!!!!! END NUDGING ONLY !!!!!!
 
          !write(111,*), minval(velocityZonal_interp), maxval(velocityZonal_interp)
          !write(112,*), minval(velocityMeridional_interp), maxval(velocityMeridional_interp)
@@ -826,6 +829,10 @@ contains
                ! for safety, we put an if loop here to make sure it will ONLY
                ! act on active tracers
                if(config_use_tracerGroup_AOT_data_assimilation) then ! .and. itimestep .ge. 2) then ! need this for first time only 
+                     !!!!!!!! NUDGING ONLY !!!!!!!!!!!
+                     !call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
+                     !!!!!!!! END NUDGING ONLY !!!!!!!!!!!
+
                      call mpas_pool_get_subpool(forcingPool, 'tracersAOTdata', tracersAOTDataPool)
                      modifiedGroupName = trim(groupItr % memberName) // "AOTObservedData"
                      call mpas_pool_get_array(tracersAOTDataPool, trim(modifiedGroupName), &
@@ -837,14 +844,13 @@ contains
                                            tracerGroupAOTInterpolatedData)
 
 
-                     !! interpolate observed data !!
-                     !call ocn_AOT_read_obs_data(domain, iErr)
-              
-                     !! interpolate gridded data from previous time step !!
-                     !call ocn_AOT_read_interp_data(domain, iErr)
-              
                      call ocn_AOT_DA_TS_init(tracer_mu,err)
 
+                     !!!!!!!! NUDGING ONLY !!!!!!!!!!!
+                     !call ocn_AOT_DA_TS_compute(nTracerGroup, nCells, maxLevelCell, &
+                     !                           activeTracers, tracerGroupAOTObservedData, &
+                     !                           tracer_mu, tracerGroupTend, layerThickness, err)
+                     !!!!!!!! END NUDGING ONLY !!!!!!!!!!!
                      call ocn_AOT_DA_TS_compute(nTracerGroup, nCells, maxLevelCell, &
                                                 tracerGroupAOTInterpolatedData, tracerGroupAOTObservedData, &
                                                 tracer_mu, tracerGroupTend, layerThickness, err)

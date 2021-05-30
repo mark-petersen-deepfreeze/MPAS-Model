@@ -65,7 +65,7 @@ subroutine interp_MPAS_to_ObsGrid(meshPool, verticalMeshPool, lat_obs, lon_obs, 
 
       !! internal variables !!
       real (kind=RKIND) :: xfrac, yfrac, zfrac
-      integer :: iDep, iLat, iLon, procout, iCell_loc_1Global
+      integer :: iDep, iLat, iLon, procout, iCell_loc_1Global, iiLat, iiLon
       integer, dimension(1) :: iCell_loc_1, dep_loc_1, dep_loc_2
       integer :: bottom_left, top_left, top_right, bottom_right, dep_low_idx, dep_high_idx 
       integer, pointer :: nCells, nVertLevels
@@ -78,6 +78,7 @@ subroutine interp_MPAS_to_ObsGrid(meshPool, verticalMeshPool, lat_obs, lon_obs, 
       integer, intent(out) :: wgtMatrix1, wgtMatrix2, wgtMatrix3, wgtMatrix4, wgtMatrix5, wgtMatrix6
       real (kind=RKIND), allocatable, dimension(:), intent(out) :: wgtMatrix7, wgtMatrix8, wgtMatrix9, procoutMatrix
       type (mpas_pool_type), pointer, intent(in) :: meshPool, verticalMeshPool
+      integer :: LatLonPair
 
       type(dspmat ), pointer :: dspmtx
 
@@ -101,6 +102,7 @@ subroutine interp_MPAS_to_ObsGrid(meshPool, verticalMeshPool, lat_obs, lon_obs, 
       allocate( procoutMatrix(nLat_obs + nLon_obs + nVertLevels_obs-2) )
 
       allocate(latCell_tmp_indx(6), lonCell_tmp_indx(6))
+
 
       tolerance = 480!240
 
@@ -237,15 +239,7 @@ subroutine interp_MPAS_to_ObsGrid(meshPool, verticalMeshPool, lat_obs, lon_obs, 
                    iCell_loc_1 = minloc((latCell_tmp(latCell_tmp_indx)-lat_obs % array (iLat))**2 + (lonCell_tmp(lonCell_tmp_indx)-lon_obs % array (iLon))**2)
                end do
 
-               !print*, bottom_left, top_left, bottom_right, top_right
-
-               !print*, 'blah'
-
-              !print*, 'top_left = ', top_left, latCell(top_left), lonCell(top_left)
-              !print*, 'top_right = ', top_right, latCell(top_right), lonCell(top_right)
-              !print*, 'bottom_left = ', bottom_left, latCell(bottom_left), lonCell(bottom_left)
-              !print*, 'bottom_right = ', bottom_right, latCell(bottom_right), lonCell(bottom_right)
-              !print*, lat_obs % array (iLat), lon_obs % array (iLon)
+              !print*, bottom_left, top_left, bottom_right, top_right
 
               if (bottom_left .ne. -32 .and. bottom_right .ne. -32) then
                   xfrac = (lat_obs % array (iLat) - latCell(bottom_left))/(latCell(bottom_right)-latCell(bottom_left))
@@ -275,6 +269,12 @@ subroutine interp_MPAS_to_ObsGrid(meshPool, verticalMeshPool, lat_obs, lon_obs, 
               wgtList(5) = bottom_right
               wgtList(6) = top_right 
               
+              print*, 'top_left = ', top_left, latCell(top_left), lonCell(top_left)
+              print*, 'top_right = ', top_right, latCell(top_right), lonCell(top_right)
+              print*, 'bottom_left = ', bottom_left, latCell(bottom_left), lonCell(bottom_left)
+              print*, 'bottom_right = ', bottom_right, latCell(bottom_right), lonCell(bottom_right)
+              print*, lat_obs % array (iLat), lon_obs % array (iLon)
+
                call uscr_insert_entry(wgtMatrix1, wgtList(1), 1, iLat+iLon+iDep-2, istat)
                call uscr_insert_entry(wgtMatrix2, wgtList(2), 1, iLat+iLon+iDep-2, istat)
                call uscr_insert_entry(wgtMatrix3, wgtList(3), 1, iLat+iLon+iDep-2, istat)
