@@ -154,7 +154,8 @@ module ocn_time_integration
       logical, pointer :: config_AOT_DA_on, config_use_activeTracers_AOT_data_assimilation 
       integer, pointer :: indexTemperature, indexSalinity, nEdges, nCells, nEdges_obs, nCells_obs, nVertLevels
       integer :: new_timestep, iErr, i, j, iCell, iVertLevels, iLat, iLon, iDep, daysinyear, LatLonIdxLen
-      real (kind=RKIND), dimension(:), allocatable :: LatLonIdxMtx, LatLonIdxMtx_true
+      real (kind=RKIND), dimension(:), allocatable :: LatLonIdxMtx, LatLonIdxMtx_true, LatLonIdx1, LatLonIdx2
+      real (kind=RKIND), dimension(:,:), allocatable :: temp_obsArray, psal_obsArray
 
       real (kind=RKIND), dimension(1,1) :: matrix
 
@@ -162,7 +163,7 @@ module ocn_time_integration
       character (len=StrKIND), pointer :: simulationStartTime
       type (MPAS_Time_type) :: xtime_timeType, simulationStartTime_timeType
 
-      integer :: rank
+      integer :: rank, mtxElts
 
       INTEGER, dimension(12) :: month_day
       INTEGER, PARAMETER :: mday(12)   &
@@ -180,6 +181,7 @@ module ocn_time_integration
         call mpas_pool_get_subpool(block % structs, 'state', statePool)
         call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
         call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
+        call mpas_pool_get_subpool(block % structs, 'verticalMesh', verticalMeshPool)
         call mpas_pool_get_array(meshPool, 'latCell', latCell)
         call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
         call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
@@ -249,32 +251,68 @@ module ocn_time_integration
 
 !call MPI_Barrier(MPI_COMM_WORLD)
 
+!  Don't do this; instead, do the loop over all the ranks
             !do iLat=1,nLat_obs
             !  do iLon=1,nLon_obs
                  if (rank == 1) then !procoutMatrix(iLat+iLon+iDep-2)) then
                      call accessdata(dspmtxLatLon, LatLon_tag, iErr)
                      LatLonIdxLen = size(dspmtxLatLon%IA1)
-                     LatLonIdxMtx = dspmtxLatLon%A
-                     print*, maxval(LatLonIdxMtx), minval(LatLonIdxMtx)
+                     LatLonIdx1 = dspmtxLatLon%IA1
+                     LatLonIdx2 = dspmtxLatLon%IA2
+                     !LatLonIdxMtx = dspmtxLatLon%A
                      call MPI_Send(LatLonIdxLen, 1, MPI_INTEGER, 0, 0, dminfo % comm, iErr) 
-                     call MPI_Send(LatLonIdxMtx, LatLonIdxLen, MPI_REAL, 0, 1, dminfo % comm, iErr)
+                     call MPI_Send(LatLonIdx1, LatLonIdxLen, MPI_REAL, 0, 1, dminfo % comm, iErr)
+                     call MPI_Send(LatLonIdx2, LatLonIdxLen, MPI_REAL, 0, 2, dminfo % comm, iErr)
+                     !call MPI_Send(LatLonIdxMtx, LatLonIdxLen, MPI_REAL, 0, 1, dminfo % comm, iErr)
                  endif
                  if (rank == 0) then
                     call MPI_Recv(LatLonIdxLen, 1, MPI_INTEGER, 1, 0, dminfo % comm, MPI_STATUS_IGNORE, iErr)
-                    call MPI_Recv(LatLonIdxMtx, LatLonIdxLen, MPI_REAL, 1, 1, dminfo % comm, MPI_STATUS_IGNORE, iErr)
-                    !LatLonIdxMtx_true = LatLonIdxMtx+1.0
-                    !print*, LatLonIdxLen
-                    print*, maxval(LatLonIdxMtx), minval(LatLonIdxMtx)
-                    !print*, maxval(LatLonIdxMtx_true), minval(LatLonIdxMtx_true)
 
-                    !temp_tmp = temp_obs % array*LatLonIndxMtx! (iLat, iLon, iDep,1)
-                    !psal_tmp = psal_obs % array*LatLonIndxMtx ! (iLat, iLon, iDep,1)
-                    !call MPI_Send( )
-                    !call MPI_Send( )
+                    allocate(LatLonIdx1(LatLonIdxLen), LatLonIdx2(LatLonIdxLen))
+                    !allocate(LatLonIdxMtx(LatLonIdxLen))
+                    !allocate(LatLonIdxMtx_true(LatLonIdxLen))
+
+                    !call MPI_Recv(LatLonIdxMtx, LatLonIdxLen, MPI_REAL, 1, 1, dminfo % comm, MPI_STATUS_IGNORE, iErr)
+                    call MPI_Recv(LatLonIdx1, LatLonIdxLen, MPI_REAL, 1, 1, dminfo % comm, MPI_STATUS_IGNORE, iErr)
+                    call MPI_Recv(LatLonIdx2, LatLonIdxLen, MPI_REAL, 1, 2, dminfo % comm, MPI_STATUS_IGNORE, iErr)
+
+                    !LatLonIdxMtx_true(:) = LatLonIdxMtx(:)+1.0
+
+                    !deallocate(LatLonIdxMtx)
+                    !deallocate(LatLonIdxMtx_true)
+
+                    allocate( temp_obsArray(LatLonIdxLen, nVertLevels_obs) )
+                    allocate( psal_obsArray(LatLonIdxLen, nVertLevels_obs) )
+                    mtxElts = LatLonIdxLen*nVertLevels_obs
+
+                    do ii = 1,LatLonIdxLen
+                       temp_obsArray(ii, :) = temp_obs % array (LatLonIdx1(ii), LatLonIdx2(ii), : ,1)
+                       psal_obsArray(ii, :) = psal_obs % array (LatLonIdx1(ii), LatLonIdx2(ii), :, 1)
+                    enddo
+
+                    call MPI_Send(mtxElts, 1, MPI_INTEGER, 0, 11, dminfo % comm, iErr) 
+                    call MPI_Send(temp_obsArray, mtxElts, MPI_REAL, 1, 3, dminfo % comm, iErr)
+                    call MPI_Send(psal_obsArray, mtxElts, MPI_REAL, 1, 4, dminfo % comm, iErr)
+
+                    print*, 'hello'
+                    print*, maxval(temp_obsArray), maxval(psal_obsArray)
+                    print*, minval(temp_obsArray), minval(psal_obsArray)
+                    print*, 'hello'
+
+                    deallocate(LatLonIdx1, LatLonIdx2, temp_obsArray, psal_obsArray)
                  endif
-             ! enddo
-            !enddo
 
+                 if (rank == 1) then
+
+                    call MPI_Recv(mtxElts, 1, MPI_INTEGER, 0, 11, dminfo % comm, MPI_STATUS_IGNORE, iErr)  
+                    call MPI_Recv(temp_obsArray, mtxElts, MPI_REAL, 0, 3, dminfo % comm, MPI_STATUS_IGNORE, iErr)
+                    call MPI_Recv(psal_obsArray, mtxElts, MPI_REAL, 0, 4, dminfo % comm, MPI_STATUS_IGNORE, iErr)
+        
+                    print*, 'hello'
+                    print*, maxval(temp_obsArray), maxval(psal_obsArray)
+                    print*, minval(temp_obsArray), minval(psal_obsArray)
+                    print*, 'hello'
+                 endif
 
                     
           call interp_MPAS_to_ObsGrid(meshPool, verticalMeshPool, lat_obs, lon_obs, dep_obs, nLat_obs, nLon_obs, nVertLevels_obs, wgtMatrix_M2O1, wgtMatrix_M2O2, wgtMatrix_M2O3, wgtMatrix_M2O4, wgtMatrix_M2O5, wgtMatrix_M2O6, wgtMatrix_M2O7, wgtMatrix_M2O8, wgtMatrix_M2O9, procoutMatrix, domain, iErr)
