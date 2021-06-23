@@ -1805,12 +1805,12 @@ end subroutine variational_denominator_c_grid
              do iEdgesOnVertex = 1, vertexDegree
 
                 call seaice_linear_constitutive_relation(&
-                     stress11(iEdgesOnVertex,iVertex), &
-                     stress22(iEdgesOnVertex,iVertex), &
-                     stress12(iEdgesOnVertex,iVertex), &
-                     strain11(iEdgesOnVertex,iVertex), &
-                     strain22(iEdgesOnVertex,iVertex), &
-                     strain12(iEdgesOnVertex,iVertex))
+                     stress11Tri(iEdgesOnVertex,iVertex), &
+                     stress22Tri(iEdgesOnVertex,iVertex), &
+                     stress12Tri(iEdgesOnVertex,iVertex), &
+                     strain11Tri(iEdgesOnVertex,iVertex), &
+                     strain22Tri(iEdgesOnVertex,iVertex), &
+                     strain12Tri(iEdgesOnVertex,iVertex))
 
              end do ! iEdgesOnVertex
 

@@ -38,7 +38,8 @@ def run_model():
     #                 "0160x0160",
     #                 "0320x0320",
     #                 "0640x0640"]}
-    grids = {"hex" :["0082x0094"]}
+    grids = {"hex" :["0082x0094",
+                     "0164x0188"]}
 
     for gridType in gridTypes:
 
