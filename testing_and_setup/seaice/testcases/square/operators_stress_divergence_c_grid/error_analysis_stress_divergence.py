@@ -94,8 +94,8 @@ def error_analysis_stress_divergence():
         print("xVertex[iVertexTest]=",xVertex[iVertexTest],"yVertex[iVertexTest]=",yVertex[iVertexTest])
         print("xEdge[iEdgeTest]=",xEdge[iEdgeTest],"yEdge[iEdgeTest]=",yEdge[iEdgeTest])
 
-        #basises = ["wachspress","pwl"]
-        basises = ["wachspress"]
+        basises = ["wachspress","pwl"]
+        #basises = ["wachspress"]
         for basis in basises:
 
             print("   ",basis)
@@ -128,6 +128,7 @@ def error_analysis_stress_divergence():
 
                 # loop over surrounding cells
                 for iSurroundingCell in range(0,2):
+                    termCheck = 0
 
                     # get the cell number of this cell
                     iCell = cellsOnEdge[iEdgeTest,iSurroundingCell]
@@ -151,9 +152,12 @@ def error_analysis_stress_divergence():
                            #print("cell",dfdy[iTerm], fTerm, basisIntegralsV[iCell,iVelocityEdge,iStressEdge], -fTerm * basisIntegralsV[iCell,iVelocityEdge,iStressEdge]/ varDenCGrid[iEdgeTest])
                         dfdx[iTerm] -= (fTerm * basisIntegralsU[iCell,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest]
                         dfdy[iTerm] -= (fTerm * basisIntegralsV[iCell,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest]
+                        termCheck -= (fTerm * basisIntegralsV[iCell,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest]
                         if iTerm == 2:
                            #print("after=",dfdy[iTerm])
-                           print("after=",(-fTerm * basisIntegralsV[iCell,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest])
+                           print("after, everything=",(-fTerm * basisIntegralsV[iCell,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest])
+                           print("after=",basisIntegralsV[iCell,iVelocityEdge,iStressEdge])
+                           print("termCheck=", termCheck)
 
                     #CHECK
                     areaCheck = 0.0
@@ -167,6 +171,7 @@ def error_analysis_stress_divergence():
                 # loop over surrounding triangles
                 for iSurroundingTri in range(0,2):
 
+                    termCheck = 0
                     # get the vertex number of this triangle
                     iVertex = verticesOnEdge[iEdgeTest,iSurroundingTri]
 
@@ -189,9 +194,12 @@ def error_analysis_stress_divergence():
                            #print("triangle", dfdy[iTerm], fTerm, basisIntegralsVTri[iVertex,iVelocityEdge,iStressEdge], -fTerm * basisIntegralsVTri[iVertex,iVelocityEdge,iStressEdge]/ varDenCGrid[iEdgeTest])
                         dfdx[iTerm] -= (fTerm * basisIntegralsUTri[iVertex,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest]
                         dfdy[iTerm] -= (fTerm * basisIntegralsVTri[iVertex,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest]
+                        termCheck -= (fTerm * basisIntegralsVTri[iVertex,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest]
                         if iTerm == 2:
                            #print("after=",dfdy[iTerm])
-                           print("after=",(-fTerm * basisIntegralsVTri[iVertex,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest])
+                           print("after, everything=",(-fTerm * basisIntegralsVTri[iVertex,iVelocityEdge,iStressEdge]) / varDenCGrid[iEdgeTest])
+                           print("after=", basisIntegralsVTri[iVertex,iVelocityEdge,iStressEdge]) 
+                           print("termCheck=", termCheck)
 
                     #CHECK
                     areaCheck = 0.0

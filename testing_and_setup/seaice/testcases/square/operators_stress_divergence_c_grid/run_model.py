@@ -14,7 +14,7 @@ def run_model():
         MPAS_SEAICE_TESTCASES_RUN_COMMAND = ""
 
     #operatorMethods = ["wachspress","pwl","weak"]
-    operatorMethods = ["wachspress"]
+    operatorMethods = ["wachspress", "pwl"]
 
     #gridTypes = ["hex","quad"]
     gridTypes = ["hex"]
