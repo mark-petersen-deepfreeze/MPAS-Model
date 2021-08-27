@@ -403,6 +403,40 @@ contains
 
     call mpas_timer_stop("variational calc_local_coords")
 
+    if (config_use_c_grid == 1) then
+       call mpas_timer_start("variational denominator_c_grid")
+       call variational_denominator_c_grid(&
+            on_a_sphere, &
+            sphere_radius, &
+            cellsOnEdge, &
+            edgesOnCell, &
+            verticesOnEdge, &
+            edgesOnVertex, &
+            nEdges, &
+            nCells, &
+            nVertices, &
+            nEdgesOnCell, &
+            xCell, &
+            yCell, &
+            zCell, &
+            xVertex, &
+            yVertex, &
+            zVertex, &
+            xEdge, &
+            yEdge, &
+            zEdge, &
+            latCell, &
+            lonCell, &
+            latVertex, &
+            lonVertex, &
+            latEdge, &
+            lonEdge, &
+            variationalDenominatorCGrid, &
+            areaCellCGrid, &
+            areaTriCGrid)
+       call mpas_timer_stop("variational denominator_c_grid")
+    end if
+
     if (trim(variationalBasisType) == "wachspress") then
 
        call seaice_init_velocity_solver_wachspress(&
@@ -444,21 +478,56 @@ contains
 
     else if (trim(variationalBasisType) == "pwl") then
 
-       call seaice_init_velocity_solver_pwl(&
-            nCells, &
-            maxEdges, &
-            nEdgesOnCell, &
-            verticesOnCell, &
-            edgesOnCell, &
-            dvEdge, &
-            areaCell, &
-            xLocal, &
-            yLocal, &
-            basisGradientU, &
-            basisGradientV, &
-            basisIntegralsMetric, &
-            basisIntegralsU, &
-            basisIntegralsV)
+       if (config_use_c_grid == 0) then
+          call seaice_init_velocity_solver_pwl(&
+               nCells, &
+               maxEdges, &
+               nEdgesOnCell, &
+               verticesOnCell, &  !NOTE: this is actually not used
+               edgesOnCell, &     !NOTE: this can be avoided if c in the function is computed
+               dvEdge, &          !NOTE: this can be avoided if c in the function is computed
+               areaCell, &
+               xLocal, &
+               yLocal, &
+               basisGradientU, &
+               basisGradientV, &
+               basisIntegralsMetric, &
+               basisIntegralsU, &
+               basisIntegralsV)
+       else
+          call seaice_init_velocity_solver_pwl(&
+               nCells, &
+               maxEdges, &
+               nEdgesOnCell, &
+               verticesOnCell, &  !NOTE: this was not used originally and it is not used also now
+               edgesOnCell, &     !NOTE: this can be avoided if c in the function is computed
+               dvEdge, &          !NOTE: this can be avoided if c in the function is computed
+               areaCellCGrid, &
+               xLocal, &
+               yLocal, &
+               basisGradientU, &
+               basisGradientV, &
+               basisIntegralsMetric, &
+               basisIntegralsU, &
+               basisIntegralsV)
+
+          call seaice_init_velocity_solver_pwl(&
+               nVertices, &
+               vertexDegree, &
+               nEdgesOnVertex, &
+               verticesOnCell, &  !NOTE: this was not used originally and it is not used also now
+               edgesOnCell, &     !NOTE: this can be avoided if c in the function is computed
+               dvEdge, &          !NOTE: this can be avoided if c in the function is computed
+               areaTriCGrid, &
+               xLocalTri, &
+               yLocalTri, &
+               basisGradientUTri, &
+               basisGradientVTri, &
+               basisIntegralsMetricTri, &
+               basisIntegralsUTri, &
+               basisIntegralsVTri)
+
+       end if
 
     else if (trim(variationalBasisType) == "none") then
 
@@ -470,8 +539,8 @@ contains
 
     endif
 
-    call mpas_timer_start("variational denominator")
     if (config_use_c_grid == 0) then
+       call mpas_timer_start("variational denominator")
        call variational_denominator(&
             nVertices, &
             vertexDegree, &
@@ -483,38 +552,8 @@ contains
             basisIntegralsMetric, &
             variationalDenominatorType, &
             variationalDenominator)
-    else
-       call variational_denominator_c_grid(&
-            on_a_sphere, &
-            sphere_radius, &
-            cellsOnEdge, &
-            edgesOnCell, &
-            verticesOnEdge, &
-            edgesOnVertex, &
-            nEdges, &
-            nCells, &
-            nVertices, &
-            nEdgesOnCell, &
-            xCell, &
-            yCell, &
-            zCell, &
-            xVertex, &
-            yVertex, &
-            zVertex, &
-            xEdge, &
-            yEdge, &
-            zEdge, &
-            latCell, &
-            lonCell, &
-            latVertex, &
-            lonVertex, &
-            latEdge, &
-            lonEdge, &
-            variationalDenominatorCGrid, &
-            areaCellCGrid, &
-            areaTriCGrid)
+       call mpas_timer_stop("variational denominator")
     end if
-    call mpas_timer_stop("variational denominator")
 
     ! clean up
     deallocate(xLocal)

@@ -160,11 +160,13 @@ contains
 
        do iSubCell = 1, nEdgesOnCell(iCell)
 
-          iEdge = edgesOnCell(iSubCell,iCell)
+          !iEdge = edgesOnCell(iSubCell,iCell)
           iVertexOnCell1 = iSubCell
           iVertexOnCell2 = seaice_wrapped_index(iSubCell + 1, nEdgesOnCell(iCell))
 
-          c = dvEdge(iEdge)
+          !c = dvEdge(iEdge)
+          c = sqrt((xLocal(iVertexOnCell1,iCell) - xLocal(iVertexOnCell2,iCell))**2 + &
+                   (yLocal(iVertexOnCell1,iCell) - yLocal(iVertexOnCell2,iCell))**2)
           a = sqrt((xLocal(iVertexOnCell1,iCell) - xPWLCentre)**2 + &
                    (yLocal(iVertexOnCell1,iCell) - yPWLCentre)**2)
           b = sqrt((xLocal(iVertexOnCell2,iCell) - xPWLCentre)**2 + &
