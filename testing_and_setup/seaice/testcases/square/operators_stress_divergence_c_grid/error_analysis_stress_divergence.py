@@ -12,15 +12,13 @@ def error_analysis_stress_divergence():
     # 3: 1/2 d2f/dx2(x0,y0) \Delta x^2
     # 4: 1/2 d2f/dy2(x0,y0) \Delta y^2
     # 5: d2f/dxdy(x0,y0) \Delta x \Delta y
+
     nTerms = 6
     dxPow = [0,1,0,2,1,0]
     dyPow = [0,0,1,0,1,2]
-    coeff = [1.0,1.0,1.0,0.5,1.0,0.5]
     terms = ["f","df/dx","df/dy","d2f/dx2","d2f/dxdy","d2f/dy2"]
 
-
     fileout = open("error_report_stress_divergence.txt","w")
-
 
     #gridTypes = ["hex","quad"]
     #grids = {"hex" :"0082x0094",
@@ -66,7 +64,6 @@ def error_analysis_stress_divergence():
 
         filegrid.close()
 
-
         # variational
         print("  Variational:")
         fileout.write("  Variational:\n")
@@ -74,10 +71,11 @@ def error_analysis_stress_divergence():
         iVertexTest = 1123
         print("  iVertexTest: ",iVertexTest)
         fileout.write("  iVertexTest: %i\n" %(iVertexTest))
-        for iCellOnVertex in range(0, vertexDegree):
-            print("  iCell: ", iCellOnVertex, cellsOnVertex[iVertexTest,iCellOnVertex])
-            fileout.write("  iCell: %i %i\n" %(iCellOnVertex, cellsOnVertex[iVertexTest,iCellOnVertex]))
+        #for iCellOnVertex in range(0, vertexDegree):
+        #    print("  iCell: ", iCellOnVertex, cellsOnVertex[iVertexTest,iCellOnVertex])
+        #    fileout.write("  iCell: %i %i\n" %(iCellOnVertex, cellsOnVertex[iVertexTest,iCellOnVertex]))
 
+        print("Edges involved:")
         print(edgesOnVertex[iVertexTest,0])
         print(edgesOnVertex[iVertexTest,1])
         print(edgesOnVertex[iVertexTest,2])
@@ -140,10 +138,10 @@ def error_analysis_stress_divergence():
 
                         iEdge = edgesOnCell[iCell,iStressEdge]
 
-                        dx = xEdge[iEdge] - xEdge[iEdgeTest]
-                        dy = yEdge[iEdge] - yEdge[iEdgeTest]
+                        dx = xEdge[iEdgeTest] - xEdge[iEdge]
+                        dy = yEdge[iEdgeTest] - yEdge[iEdge]
 
-                        fTerm = coeff[iTerm] * pow(dx,dxPow[iTerm]) * pow(dy,dyPow[iTerm])
+                        fTerm = pow(dx,dxPow[iTerm]) * pow(dy,dyPow[iTerm])
 
                         dfdx[iTerm] -= (fTerm * basisIntegralsU[iCell,iStressEdge,iVelocityEdge]) / varDenCGrid[iEdgeTest]
                         dfdy[iTerm] -= (fTerm * basisIntegralsV[iCell,iStressEdge,iVelocityEdge]) / varDenCGrid[iEdgeTest]
@@ -172,10 +170,10 @@ def error_analysis_stress_divergence():
 
                         iEdge = edgesOnVertex[iVertex,iStressEdge]
 
-                        dx = xEdge[iEdge] - xEdge[iEdgeTest]
-                        dy = yEdge[iEdge] - yEdge[iEdgeTest]
+                        dx = xEdge[iEdgeTest] - xEdge[iEdge]
+                        dy = yEdge[iEdgeTest] - yEdge[iEdge]
 
-                        fTerm = coeff[iTerm] * pow(dx,dxPow[iTerm]) * pow(dy,dyPow[iTerm])
+                        fTerm = pow(dx,dxPow[iTerm]) * pow(dy,dyPow[iTerm])
 
                         dfdx[iTerm] -= (fTerm * basisIntegralsUTri[iVertex,iStressEdge,iVelocityEdge]) / varDenCGrid[iEdgeTest]
                         dfdy[iTerm] -= (fTerm * basisIntegralsVTri[iVertex,iStressEdge,iVelocityEdge]) / varDenCGrid[iEdgeTest]

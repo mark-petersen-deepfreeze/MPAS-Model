@@ -82,8 +82,8 @@ def error_analysis_stress_divergence():
         fileout.write("  dcEdge: %f\n" %(dcEdge))
 
 
-        #basises = ["wachspress","pwl"]
-        basises = ["wachspress"]
+        basises = ["wachspress","pwl"]
+        #basises = ["wachspress"]
         for basis in basises:
 
             print("   ",basis)
@@ -124,8 +124,8 @@ def error_analysis_stress_divergence():
 
                         fTerm = coeff[iTerm] * pow(dx,dxPow[iTerm]) * pow(dy,dyPow[iTerm])
 
-                        dfdx[iTerm] -= (fTerm * basisIntegralsU[iCell,iVelocityVertex,iStressVertex]) / areaTriangle[iVertexTest]
-                        dfdy[iTerm] -= (fTerm * basisIntegralsV[iCell,iVelocityVertex,iStressVertex]) / areaTriangle[iVertexTest]
+                        dfdx[iTerm] -= (fTerm * basisIntegralsU[iCell, iStressVertex, iVelocityVertex]) / areaTriangle[iVertexTest]
+                        dfdy[iTerm] -= (fTerm * basisIntegralsV[iCell, iStressVertex, iVelocityVertex]) / areaTriangle[iVertexTest]
 
             dfdxAvg = np.mean(dfdx,axis=0)
             dfdyAvg = np.mean(dfdy,axis=0)
