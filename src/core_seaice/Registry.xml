@@ -3741,16 +3741,16 @@
 		<var name="strain11var"			type="real"	dimensions="maxEdges nCells Time"		name_in_code="strain11"/>
 		<var name="strain22var"			type="real"	dimensions="maxEdges nCells Time"		name_in_code="strain22"/>
 		<var name="strain12var"			type="real"	dimensions="maxEdges nCells Time"		name_in_code="strain12"/>
-		<var name="strain11varTri"              type="real"	dimensions="R3 nVertices Time"		        name_in_code="strain11Tri"/>
-		<var name="strain22varTri"		type="real"	dimensions="R3 nVertices Time"		        name_in_code="strain22Tri"/>
-		<var name="strain12varTri"		type="real"	dimensions="R3 nVertices Time"		        name_in_code="strain12Tri"/>
+		<var name="strain11varTri"              type="real"	dimensions="vertexDegree nVertices Time"        name_in_code="strain11Tri"/>
+		<var name="strain22varTri"		type="real"	dimensions="vertexDegree nVertices Time"	name_in_code="strain22Tri"/>
+		<var name="strain12varTri"		type="real"	dimensions="vertexDegree nVertices Time"        name_in_code="strain12Tri"/>
 		<var name="stress11var"			type="real"	dimensions="maxEdges nCells Time"		name_in_code="stress11"/>
 		<var name="stress22var"			type="real"	dimensions="maxEdges nCells Time"		name_in_code="stress22"/>
 		<var name="stress12var"			type="real"	dimensions="maxEdges nCells Time"		name_in_code="stress12"/>
-		<var name="stress11varTri"	        type="real"	dimensions="R3 nVertices Time"    		name_in_code="stress11Tri"/>
-		<var name="stress22varTri"		type="real"	dimensions="R3 nVertices Time"	        	name_in_code="stress22Tri"/>
-		<var name="stress12varTri"		type="real"	dimensions="R3 nVertices Time"	        	name_in_code="stress12Tri"/>
-		<var name="tanLatVertexRotatedOverRadius"	type="real"	dimensions="nVertices"				name_in_code="tanLatVertexRotatedOverRadius"/>
+		<var name="stress11varTri"	        type="real"	dimensions="vertexDegree nVertices Time"  	name_in_code="stress11Tri"/>
+		<var name="stress22varTri"		type="real"	dimensions="vertexDegree nVertices Time"      	name_in_code="stress22Tri"/>
+		<var name="stress12varTri"		type="real"	dimensions="vertexDegree nVertices Time"	name_in_code="stress12Tri"/>
+		<var name="tanLatVertexRotatedOverRadius"	type="real"	dimensions="nVertices"		        name_in_code="tanLatVertexRotatedOverRadius"/>
 		<var name="tanLatEdgeRotatedOverRadius"	type="real"	dimensions="nEdges"				name_in_code="tanLatEdgeRotatedOverRadius"/>
 		<var name="cellVerticesAtVertex"		type="integer"	dimensions="vertexDegree nVertices"		name_in_code="cellVerticesAtVertex"/>
 		<var name="cellEdgesAtEdge"	         	type="integer"	dimensions="TWO nEdges"          		name_in_code="cellEdgesAtEdge"/>
@@ -3760,17 +3760,17 @@
 		<var name="basisIntegralsU"			type="real"	dimensions="maxEdges maxEdges nCells"		name_in_code="basisIntegralsU"/>
 		<var name="basisIntegralsV"			type="real"	dimensions="maxEdges maxEdges nCells"		name_in_code="basisIntegralsV"/>
 		<var name="basisIntegralsMetric"		type="real"	dimensions="maxEdges maxEdges nCells"		name_in_code="basisIntegralsMetric"/>
-		<var name="basisIntegralsUTri"	           	type="real"	dimensions="R3 R3 nVertices"		name_in_code="basisIntegralsUTri"/>
-		<var name="basisIntegralsVTri"    		type="real"	dimensions="R3 R3 nVertices"		name_in_code="basisIntegralsVTri"/>
-		<var name="basisIntegralsMetricTri"     	type="real"	dimensions="R3 R3 nVertices"		name_in_code="basisIntegralsMetricTri"/>
+		<var name="basisIntegralsUTri"	           	type="real"	dimensions="vertexDegree vertexDegree nVertices"		name_in_code="basisIntegralsUTri"/>
+		<var name="basisIntegralsVTri"    		type="real"	dimensions="vertexDegree vertexDegree nVertices"		name_in_code="basisIntegralsVTri"/>
+		<var name="basisIntegralsMetricTri"     	type="real"	dimensions="vertexDegree vertexDegree nVertices"		name_in_code="basisIntegralsMetricTri"/>
 		<var name="basisGradientU"			type="real"	dimensions="maxEdges maxEdges nCells"		name_in_code="basisGradientU"/>
 		<var name="basisGradientV"			type="real"	dimensions="maxEdges maxEdges nCells"		name_in_code="basisGradientV"/>
-		<var name="basisGradientUTri"			type="real"	dimensions="R3 R3 nVertices"		name_in_code="basisGradientUTri"/>
-		<var name="basisGradientVTri"			type="real"	dimensions="R3 R3 nVertices"		name_in_code="basisGradientVTri"/>
+		<var name="basisGradientUTri"			type="real"	dimensions="vertexDegree vertexDegree nVertices"		name_in_code="basisGradientUTri"/>
+		<var name="basisGradientVTri"			type="real"	dimensions="vertexDegree vertexDegree nVertices"		name_in_code="basisGradientVTri"/>
 		<var name="principalStress1Var"		        type="real"	dimensions="maxEdges nCells Time"		name_in_code="principalStress1"/>
 		<var name="principalStress2Var"		        type="real"	dimensions="maxEdges nCells Time"		name_in_code="principalStress2"/>
 		<var name="replacementPressureVar"		type="real"	dimensions="maxEdges nCells Time"		name_in_code="replacementPressure"/>
-		<var name="replacementPressureVarTri"		type="real"	dimensions="R3 nVertices Time"		name_in_code="replacementPressureTri"/>
+		<var name="replacementPressureVarTri"		type="real"	dimensions="vertexDegree nVertices Time"		name_in_code="replacementPressureTri"/>
 		<var name="variationalDenominator"	        type="real"	dimensions="nVertices"				name_in_code="variationalDenominator"/>
 		<var name="variationalDenominatorCGrid"  type="real"	dimensions="nEdges"				name_in_code="variationalDenominatorCGrid"/>
 	</var_struct>
