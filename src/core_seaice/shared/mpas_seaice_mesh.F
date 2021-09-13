@@ -3949,7 +3949,7 @@ contains
      implicit none
 
      real (kind=RKIND), intent(in) :: x1, y1, z1, x2, y2, z2, x3, y3, z3
-     real (kind=RKIND) :: s, a, b, c
+     real (kind=RKIND) :: s, a, b, c, underSqrt
 
      !get side lengths
      a = planar_distance(x1, y1, z1, x2, y2, z2)
@@ -3959,7 +3959,11 @@ contains
      !semi-perimeter of TRI(ABC)
      s = (a + b + c) * 0.5_RKIND
 
-     planar_triangle_area = sqrt(s * (s - a) * (s - b) * (s - c))
+     underSqrt = s * (s - a) * (s - b) * (s - c)     
+     if (abs(underSqrt) < 1.e-11) then
+        underSqrt = abs(underSqrt) !to handle numerical zeros
+     end if
+     planar_triangle_area = sqrt(underSqrt)
 
    end function planar_triangle_area
 

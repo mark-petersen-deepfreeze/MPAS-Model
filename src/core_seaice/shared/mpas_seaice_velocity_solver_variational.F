@@ -416,6 +416,7 @@ contains
             nCells, &
             nVertices, &
             nEdgesOnCell, &
+            vertexDegree, &
             xCell, &
             yCell, &
             zCell, &
@@ -680,6 +681,7 @@ contains
        nCells, &
        nVertices, &
        nEdgesOnCell, &
+       vertexDegree, &
        xCell, &
        yCell, &
        zCell, &
@@ -709,7 +711,8 @@ contains
     integer, intent(in) :: &
          nEdges, &     !< Input:
          nCells, &     !< Input:
-         nVertices     !< Input:
+         nVertices, &  !< Input:
+         vertexDegree  !< Input:
 
     real(kind=RKIND), intent(in) :: &
          sphere_radius !<Input:
@@ -753,6 +756,8 @@ contains
          jEdge, &
          iCell, &
          iVertex, &
+         iEdgeOnVertex, &
+         jEdgeOnVertex, &
          iCellOnEdge, &
          cellOnEdge, &
          vertOnEdge1, &
@@ -761,6 +766,8 @@ contains
     real(kind=RKIND) :: &
          laCell, &
          loCell, &
+         laVertex, &
+         loVertex, &
          laVert1, &
          loVert1, &
          laVert2, &
@@ -769,8 +776,6 @@ contains
          loEdge1, &
          laEdge2, &
          loEdge2, &
-         laEdge3, &
-         loEdge3, &
          xc, &
          yc, &
          zc, &
@@ -842,14 +847,20 @@ contains
 
        do iVertex = 1, nVertices
 
-          laEdge1 = latEdge(edgesOnVertex(1,iVertex))
-          loEdge1 = lonEdge(edgesOnVertex(1,iVertex))
-          laEdge2 = latEdge(edgesOnVertex(2,iVertex))
-          loEdge2 = lonEdge(edgesOnVertex(2,iVertex))
-          laEdge3 = latEdge(edgesOnVertex(3,iVertex))
-          loEdge3 = lonEdge(edgesOnVertex(3,iVertex))
+          do iEdgeOnVertex = 1, vertexDegree
 
-          areaTriCGrid(iVertex) = areaTriCGrid(iVertex) + spherical_triangle_area(laEdge1, loEdge1, laEdge2, loEdge2, laEdge3, loEdge3, sphere_radius)       
+             jEdgeOnVertex = seaice_wrapped_index(iEdgeOnVertex + 1, vertexDegree)
+
+             laEdge1 = latEdge(edgesOnVertex(iEdgeOnVertex,iVertex))
+             loEdge1 = lonEdge(edgesOnVertex(iEdgeOnVertex,iVertex))
+             laEdge2 = latEdge(edgesOnVertex(jEdgeOnVertex,iVertex))
+             loEdge2 = lonEdge(edgesOnVertex(jEdgeOnVertex,iVertex))
+             laVertex = latVertex(iVertex)
+             loVertex = lonVertex(iVertex)
+
+             areaTriCGrid(iVertex) = areaTriCGrid(iVertex) + spherical_triangle_area(laEdge1, loEdge1, laEdge2, loEdge2, laVertex, loVertex, sphere_radius)       
+
+          end do
 
        end do
 
@@ -904,17 +915,23 @@ contains
 
        do iVertex = 1, nVertices
 
-          xe1 = xEdge(edgesOnVertex(1,iVertex))
-          ye1 = yEdge(edgesOnVertex(1,iVertex))
-          ze1 = zEdge(edgesOnVertex(1,iVertex))
-          xe2 = xEdge(edgesOnVertex(2,iVertex))
-          ye2 = yEdge(edgesOnVertex(2,iVertex))
-          ze2 = zEdge(edgesOnVertex(2,iVertex))
-          xe3 = xEdge(edgesOnVertex(3,iVertex))
-          ye3 = yEdge(edgesOnVertex(3,iVertex))
-          ze3 = zEdge(edgesOnVertex(3,iVertex))
+          do iEdgeOnVertex = 1, vertexDegree
 
-          areaTriCGrid(iVertex) = areaTriCGrid(iVertex) + planar_triangle_area(xe1, ye1, ze1, xe2, ye2, ze2, xe3, ye3, ze3)
+             jEdgeOnVertex = seaice_wrapped_index(iEdgeOnVertex + 1, vertexDegree)
+
+             xe1 = xEdge(edgesOnVertex(iEdgeOnVertex,iVertex))
+             ye1 = yEdge(edgesOnVertex(iEdgeOnVertex,iVertex))
+             ze1 = zEdge(edgesOnVertex(iEdgeOnVertex,iVertex))
+             xe2 = xEdge(edgesOnVertex(jEdgeOnVertex,iVertex))
+             ye2 = yEdge(edgesOnVertex(jEdgeOnVertex,iVertex))
+             ze2 = zEdge(edgesOnVertex(jEdgeOnVertex,iVertex))
+             xc = xVertex(iVertex)
+             yc = yVertex(iVertex)
+             zc = zVertex(iVertex)
+
+             areaTriCGrid(iVertex) = areaTriCGrid(iVertex) + planar_triangle_area(xc, yc, zc, xe1, ye1, ze1, xe2, ye2, ze2)
+
+          end do
 
        end do
 
