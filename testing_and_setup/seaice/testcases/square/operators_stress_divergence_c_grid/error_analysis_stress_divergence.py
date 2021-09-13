@@ -69,7 +69,8 @@ def error_analysis_stress_divergence():
         print("  Variational:")
         fileout.write("  Variational:\n")
 
-        iVertexTest = 1123
+        #iVertexTest = 1123 #for hex
+        #iVertexTest = 5071 #for quad
         #print("  iVertexTest: ",iVertexTest)
         #fileout.write("  iVertexTest: %i\n" %(iVertexTest))
         #for iCellOnVertex in range(0, vertexDegree):
@@ -80,6 +81,8 @@ def error_analysis_stress_divergence():
         #print(edgesOnVertex[iVertexTest,0])
         #print(edgesOnVertex[iVertexTest,1])
         #print(edgesOnVertex[iVertexTest,2])
+        ##print(edgesOnVertex[iVertexTest,3]) for the quad there is this one too
+
 
         iEdgeTest = 1554 #it is one of the edgesOnVertex of vertex 1123 in the hexagon mesh (with both enumerations starting from 0)
         #iEdgeTest = 1436  #it is one of the edgesOnVertex of vertex 1123 in the hexagon mesh (with both enumerations starting from 0) USE THIS WITH FINER MESH
