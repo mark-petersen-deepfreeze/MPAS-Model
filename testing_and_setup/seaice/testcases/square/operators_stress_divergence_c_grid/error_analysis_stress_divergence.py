@@ -21,10 +21,11 @@ def error_analysis_stress_divergence():
     fileout = open("error_report_stress_divergence.txt","w")
 
     #gridTypes = ["hex","quad"]
-    #grids = {"hex" :"0082x0094",
-    #         "quad":"0080x0080"}
-    gridTypes = ["hex"]
-    grids = {"hex" :"0082x0094"}
+    grids = {"hex" :"0082x0094",
+             "quad":"0080x0080"}
+    gridTypes = ["hex","quad"]
+    #gridTypes = ["hex"]
+    #grids = {"hex" :"0082x0094"}
     #grids = {"hex" :"0164x0188"}
     for gridType in gridTypes:
 
@@ -69,19 +70,19 @@ def error_analysis_stress_divergence():
         fileout.write("  Variational:\n")
 
         iVertexTest = 1123
-        print("  iVertexTest: ",iVertexTest)
-        fileout.write("  iVertexTest: %i\n" %(iVertexTest))
+        #print("  iVertexTest: ",iVertexTest)
+        #fileout.write("  iVertexTest: %i\n" %(iVertexTest))
         #for iCellOnVertex in range(0, vertexDegree):
         #    print("  iCell: ", iCellOnVertex, cellsOnVertex[iVertexTest,iCellOnVertex])
         #    fileout.write("  iCell: %i %i\n" %(iCellOnVertex, cellsOnVertex[iVertexTest,iCellOnVertex]))
 
-        print("Edges involved:")
-        print(edgesOnVertex[iVertexTest,0])
-        print(edgesOnVertex[iVertexTest,1])
-        print(edgesOnVertex[iVertexTest,2])
+        #print("Edges involved:")
+        #print(edgesOnVertex[iVertexTest,0])
+        #print(edgesOnVertex[iVertexTest,1])
+        #print(edgesOnVertex[iVertexTest,2])
 
-        iEdgeTest = 1554 #it is one of the edgesOnVertex of vertex 1123 (with both enumerations starting from 0)
-        #iEdgeTest = 1436  #it is one of the edgesOnVertex of vertex 1123 (with both enumerations starting from 0) USE THIS WITH FINER MESH
+        iEdgeTest = 1554 #it is one of the edgesOnVertex of vertex 1123 in the hexagon mesh (with both enumerations starting from 0)
+        #iEdgeTest = 1436  #it is one of the edgesOnVertex of vertex 1123 in the hexagon mesh (with both enumerations starting from 0) USE THIS WITH FINER MESH
         print("  iEdgeTest: ",iEdgeTest)
         fileout.write("  iEdgeTest: %i\n" %(iEdgeTest))
         for iCellOnEdge in range(0, 2):
@@ -89,10 +90,11 @@ def error_analysis_stress_divergence():
             fileout.write("  iCell: %i %i\n" %(iCellOnEdge, cellsOnEdge[iEdgeTest,iCellOnEdge]))
 
         #print("xVertex[iVertexTest]=",xVertex[iVertexTest],"yVertex[iVertexTest]=",yVertex[iVertexTest])
-        #print("xEdge[iEdgeTest]=",xEdge[iEdgeTest],"yEdge[iEdgeTest]=",yEdge[iEdgeTest])
+        print("xEdge[iEdgeTest]=",xEdge[iEdgeTest],"yEdge[iEdgeTest]=",yEdge[iEdgeTest])
 
         basises = ["wachspress","pwl"]
         #basises = ["wachspress"]
+        #basises = ["pwl"]
         for basis in basises:
 
             print("   ",basis)

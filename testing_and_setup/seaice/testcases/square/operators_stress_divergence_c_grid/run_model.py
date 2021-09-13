@@ -16,8 +16,8 @@ def run_model():
     #operatorMethods = ["wachspress","pwl","weak"]
     operatorMethods = ["wachspress", "pwl"]
 
-    #gridTypes = ["hex","quad"]
-    gridTypes = ["hex"]
+    gridTypes = ["hex","quad"]
+    #gridTypes = ["hex"]
 
     #grids = {"hex" :["0082x0094",
     #                 "0164x0188",
@@ -27,8 +27,8 @@ def run_model():
     #                 "0160x0160",
     #                 "0320x0320",
     #                 "0640x0640"]}
-    ##grids = {"hex" :["0082x0094"],
-    ##         "quad":["0080x0080"]}
+    grids = {"hex" :["0082x0094"],
+             "quad":["0080x0080"]}
 
     #grids = {"hex" :["0082x0094",
     #                 "0164x0188",
@@ -38,8 +38,8 @@ def run_model():
     #                 "0160x0160",
     #                 "0320x0320",
     #                 "0640x0640"]}
-    grids = {"hex" :["0082x0094",
-                     "0164x0188"]}
+    #grids = {"hex" :["0082x0094",
+    #                 "0164x0188"]}
 
     for gridType in gridTypes:
 

@@ -121,9 +121,9 @@ def create_ic(gridfile, icfile):
     stress11var = np.zeros((nCells, maxEdges))
     stress22var = np.zeros((nCells, maxEdges))
     stress12var = np.zeros((nCells, maxEdges))
-    stress11varTri = np.zeros((nVertices, 3))
-    stress22varTri = np.zeros((nVertices, 3))
-    stress12varTri = np.zeros((nVertices, 3))
+    stress11varTri = np.zeros((nVertices, vertexDegree))
+    stress22varTri = np.zeros((nVertices, vertexDegree))
+    stress12varTri = np.zeros((nVertices, vertexDegree))
 
     for iCell in range(0, nCells):
         for iEdgeOnCell in range(0,nEdgesOnCell[iCell]):
@@ -147,7 +147,7 @@ def create_ic(gridfile, icfile):
     fileOut.createDimension("nEdges", nEdges)
     fileOut.createDimension("nCells", nCells)
     fileOut.createDimension("maxEdges", maxEdges)
-    fileOut.createDimension("R3", 3)
+    fileOut.createDimension("vertexDegree", vertexDegree)
 
     var = fileOut.createVariable("uVelocity","d",dimensions=["nVertices"])
     var[:] = uVelocity[:]
@@ -173,13 +173,13 @@ def create_ic(gridfile, icfile):
     var = fileOut.createVariable("strain12var","d",dimensions=["nCells","maxEdges"])
     var[:] = stress12var[:]
 
-    var = fileOut.createVariable("strain11varTri","d",dimensions=["nVertices","R3"])
+    var = fileOut.createVariable("strain11varTri","d",dimensions=["nVertices","vertexDegree"])
     var[:] = stress11varTri[:]
 
-    var = fileOut.createVariable("strain22varTri","d",dimensions=["nVertices","R3"])
+    var = fileOut.createVariable("strain22varTri","d",dimensions=["nVertices","vertexDegree"])
     var[:] = stress22varTri[:]
 
-    var = fileOut.createVariable("strain12varTri","d",dimensions=["nVertices","R3"])
+    var = fileOut.createVariable("strain12varTri","d",dimensions=["nVertices","vertexDegree"])
     var[:] = stress12varTri[:]
 
     var = fileOut.createVariable("stress11var","d",dimensions=["nCells","maxEdges"])
@@ -191,13 +191,13 @@ def create_ic(gridfile, icfile):
     var = fileOut.createVariable("stress12var","d",dimensions=["nCells","maxEdges"])
     var[:] = stress12var[:]
 
-    var = fileOut.createVariable("stress11varTri","d",dimensions=["nVertices","R3"])
+    var = fileOut.createVariable("stress11varTri","d",dimensions=["nVertices","vertexDegree"])
     var[:] = stress11varTri[:]
 
-    var = fileOut.createVariable("stress22varTri","d",dimensions=["nVertices","R3"])
+    var = fileOut.createVariable("stress22varTri","d",dimensions=["nVertices","vertexDegree"])
     var[:] = stress22varTri[:]
 
-    var = fileOut.createVariable("stress12varTri","d",dimensions=["nVertices","R3"])
+    var = fileOut.createVariable("stress12varTri","d",dimensions=["nVertices","vertexDegree"])
     var[:] = stress12varTri[:]
 
     var = fileOut.createVariable("stressDivergenceUAnalytical","d",dimensions=["nEdges"])
@@ -212,8 +212,8 @@ def create_ic(gridfile, icfile):
 
 def create_ics():
 
-#    gridTypes = ["hex","quad"]
-    gridTypes = ["hex"]
+    gridTypes = ["hex","quad"]
+#    gridTypes = ["hex"]
 
 #    grids = {"hex": ["0082x0094",
 #                     "0164x0188",
@@ -224,11 +224,11 @@ def create_ics():
 #                     "0320x0320",
 #                     "0640x0640"]}
 
-#    grids = {"hex": ["0082x0094"],
-#             "quad":["0080x0080"]}
+    grids = {"hex": ["0082x0094"],
+             "quad":["0080x0080"]}
 
-    grids = {"hex": ["0082x0094",
-                     "0164x0188"]}
+#    grids = {"hex": ["0082x0094",
+#                     "0164x0188"]}
 
     for gridType in gridTypes:
         for grid in grids[gridType]:
