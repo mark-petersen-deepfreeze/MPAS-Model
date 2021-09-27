@@ -28,9 +28,11 @@ module seaice_mesh_pool
       vertexDegree
 
    integer, public, dimension(:), pointer :: & 
-      nEdgesOnCell,   &
-      solveStress,    &
-      solveVelocity
+      nEdgesOnCell,       &
+      solveStress,        &
+      solveStressTri,     &
+      solveVelocity,      &
+      solveVelocityCGrid
 
    integer, public, dimension(:,:), pointer :: &
       verticesOnCell, &
@@ -54,12 +56,13 @@ module seaice_mesh_pool
       stressDivergenceV
 
    real(kind=RKIND), public, dimension(:,:), pointer :: &
-      stress11,       &
-      stress12,       &
-      stress22,       &
-      stress11Tri,    &
-      stress12Tri,    &
-      stress22Tri
+      stress11,         &
+      stress12,         &
+      stress22,         &
+      stress11Tri,      &
+      stress12Tri,      &
+      stress22Tri,      &
+      kiteAreasOnVertex   
 
    real(kind=RKIND), public, dimension(:,:,:), pointer :: &
       basisGradientU, &
@@ -149,9 +152,12 @@ contains
        call mpas_pool_get_array(meshPool, 'verticesOnEdge',  verticesOnEdge)
        call mpas_pool_get_array(meshPool, 'cellsOnEdge',  cellsOnEdge)
        call mpas_pool_get_array(meshPool, 'areaTriangle',   areaTriangle)
+       call mpas_pool_get_array(meshPool, 'kiteAreasOnVertex',   kiteAreasOnVertex)
 
        call MPAS_pool_get_array(velocitySolverPool, "solveStress",       solveStress)
+       call MPAS_pool_get_array(velocitySolverPool, "solveStressTri",       solveStressTri)
        call MPAS_pool_get_array(velocitySolverPool, "solveVelocity",     solveVelocity)
+       call MPAS_pool_get_array(velocitySolverPool, "solveVelocityCGrid",     solveVelocityCGrid)
        call MPAS_pool_get_array(velocitySolverPool, "icePressure",       icePressure)
        call MPAS_pool_get_array(velocitySolverPool, "uVelocity",         uVelocity)
        call MPAS_pool_get_array(velocitySolverPool, "vVelocity",         vVelocity)
@@ -196,7 +202,9 @@ contains
 !$GPUC   cellsOnEdge,                   &
 !$GPUC   areaTriangle,                  &
 !$GPUC   solveStress,                   &
+!$GPUC   solveStressTri,                &
 !$GPUC   solveVelocity,                 &
+!$GPUC   solveVelocityCGrid,            &
 !$GPUC   icePressure,                   &
 !$GPUC   uVelocity,                     &
 !$GPUC   vVelocity,                     &
@@ -222,7 +230,8 @@ contains
 !$GPUC   stress22,                      &
 !$GPUC   stress11Tri,                   &
 !$GPUC   stress12Tri,                   &
-!$GPUC   stress22Tri                    &
+!$GPUC   stress22Tri,                   &
+!$GPUC   kiteAreasOnVertex              &
 !$GPUF
 #endif
 
@@ -262,10 +271,12 @@ contains
 !$GPUC   edgesOnCell,                   &
 !$GPUC   edgesOnVertex,                 &
 !$GPUC   verticesOnEdge,                &
-!$GPUC   cellsOnEdge,                &
+!$GPUC   cellsOnEdge,                   &
 !$GPUC   areaTriangle,                  &
 !$GPUC   solveStress,                   &
+!$GPUC   solveStressTri,                &
 !$GPUC   solveVelocity,                 &
+!$GPUC   solveVelocityCGrid,            &
 !$GPUC   icePressure,                   &
 !$GPUC   uVelocity,                     &
 !$GPUC   vVelocity,                     &
@@ -291,7 +302,8 @@ contains
 !$GPUC   stress22,                      &
 !$GPUC   stress11Tri,                   &
 !$GPUC   stress12Tri,                   &
-!$GPUC   stress22Tri                    &
+!$GPUC   stress22Tri,                   &
+!$GPUC   kiteAreasOnVertex              &     
 !$GPUF
 #endif
 
@@ -302,10 +314,12 @@ contains
          edgesOnCell,             &
          edgesOnVertex,           &
          verticesOnEdge,          &
-         cellsOnEdge,          &
+         cellsOnEdge,             &
          areaTriangle,            &
          solveStress,             &
+         solveStressTri,          &
          solveVelocity,           &
+         solveVelocityCGrid,      &
          icePressure,             &
          uVelocity,               &
          vVelocity,               &
@@ -331,7 +345,8 @@ contains
          stress22,             &
          stress11Tri,          &
          stress12Tri,          &
-         stress22Tri           &
+         stress22Tri,          &
+         kiteAreasOnVertex     &   
     )
 
   end subroutine seaice_mesh_pool_destroy!}}}
@@ -353,18 +368,20 @@ contains
 
 #if defined(MPAS_OPENMP_OFFLOAD) || defined(MPAS_OPENACC)
     ! update arrays on device
-!$GPU UPDATE_D_LP       &
-!$GPUC   solveStress,   &
-!$GPUC   solveVelocity, &
-!$GPUC   icePressure,   &
-!$GPUC   uVelocity,     &
-!$GPUC   vVelocity,     &
-!$GPUC   stress11,      &
-!$GPUC   stress12,      &
-!$GPUC   stress22       &
-!$GPUC   stress11Tri,   &
-!$GPUC   stress12Tri,   &
-!$GPUC   stress22Tri    &
+!$GPU UPDATE_D_LP              &
+!$GPUC   solveStress,          &
+!$GPUC   solveStressTri,       &
+!$GPUC   solveVelocity,        &
+!$GPUC   solveVelocityCGrid,   &
+!$GPUC   icePressure,          &
+!$GPUC   uVelocity,            &
+!$GPUC   vVelocity,            &
+!$GPUC   stress11,             &
+!$GPUC   stress12,             &
+!$GPUC   stress22              &
+!$GPUC   stress11Tri,          &
+!$GPUC   stress12Tri,          &
+!$GPUC   stress22Tri           &
 !$GPUF
 #endif
 

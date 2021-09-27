@@ -114,7 +114,8 @@ contains
          config_rotate_cartesian_grid, &
          config_include_metric_terms, &
          config_aggregate_halo_exch, &
-         config_reuse_halo_exch
+         config_reuse_halo_exch, &
+         config_use_c_grid
 
     type (MPAS_pool_type), pointer :: &
          mesh, &
@@ -233,6 +234,8 @@ contains
           if (strainSchemeType           == VARIATIONAL_STRAIN_SCHEME .or. &
               stressDivergenceSchemeType == VARIATIONAL_STRESS_DIVERGENCE_SCHEME) then
 
+             call MPAS_pool_get_config(block % configs, "config_use_c_grid", config_use_c_grid)
+
              call seaice_init_velocity_solver_variational(&
                   mesh, &
                   velocity_variational, &
@@ -242,7 +245,8 @@ contains
                   config_variational_basis, &
                   config_variational_denominator_type, &
                   config_wachspress_integration_type, &
-                  config_wachspress_integration_order)
+                  config_wachspress_integration_order, &
+                  config_use_c_grid)
 
           endif
 
@@ -935,6 +939,7 @@ contains
 
           ! no aggregated halo exchange
           call MPAS_dmpar_field_halo_exch(domain, 'solveVelocity')
+          call MPAS_dmpar_field_halo_exch(domain, 'solveVelocityCGrid')
 
        endif ! config_aggregate_halo_exch
 
@@ -973,26 +978,38 @@ contains
          oceanCouplingPool
 
     integer, dimension(:), pointer :: &
-         solveStress
+         solveStress, &
+         solveStressTri
 
     real(kind=RKIND), dimension(:), pointer :: &
          iceAreaCellInitial, &
-         totalMassCell
+         totalMassCell, &
+         iceAreaVertex, &
+         totalMassVertex
 
     integer :: &
          iCell, &
          iCellOnCell, &
-         iCellNeighbour
+         iCellNeighbour, &
+         iVertex, &
+         iCellOnVertex
 
     integer, pointer :: &
-         nCells
+         nCells, &
+         nVertices, &
+         vertexDegree
 
     integer, dimension(:), pointer :: &
          nEdgesOnCell, &
-         landIceMask
+         landIceMask, &
+         landIceMaskVertex
 
     integer, dimension(:,:), pointer :: &
-         cellsOnCell
+         cellsOnCell, &
+         cellsOnVertex
+
+    logical, pointer :: &
+         config_use_c_grid
 
     block => domain % blocklist
     do while (associated(block))
@@ -1053,6 +1070,43 @@ contains
 
        enddo ! iCell
 
+       call MPAS_pool_get_config(block % configs, "config_use_c_grid", config_use_c_grid)
+
+       if (config_use_c_grid) then
+
+          call MPAS_pool_get_dimension(block % dimensions, "nVertices", nVertices)
+          call MPAS_pool_get_dimension(block % dimensions, "vertexDegree", vertexDegree)
+          call MPAS_pool_get_array(meshPool, "cellsOnVertex", cellsOnVertex)
+
+          call MPAS_pool_get_array(velocitySolverPool, "solveStressTri", solveStressTri)
+
+          call MPAS_pool_get_subpool(block % structs, "icestate", icestatePool)
+          call MPAS_pool_get_subpool(block % structs, "ocean_coupling", oceanCouplingPool)
+
+          call MPAS_pool_get_array(icestatePool, "iceAreaCellInitial", iceAreaCellInitial)
+          call MPAS_pool_get_array(icestatePool, "totalMassCell", totalMassCell)
+          call MPAS_pool_get_array(oceanCouplingPool, "landIceMask", landIceMask)
+
+          solveStressTri(:) = 0
+
+          do iVertex = 1, nVertices
+
+             ! if a vertex belongs to a cell that has enough ice, then solveStressTri is set to true
+             do iCellOnVertex = 1, vertexDegree
+                if (iceAreaCellInitial(cellsOnVertex(iCellOnVertex,iVertex)) > seaiceAreaMinimum .and. &
+                   totalMassCell(cellsOnVertex(iCellOnVertex,iVertex)) > seaiceMassMinimum .and. &
+                   landIceMask(cellsOnVertex(iCellOnVertex,iVertex)) == 0) then
+
+                   solveStressTri(iVertex) = 1
+                   exit
+
+                end if
+             end do
+
+          end do          
+
+       end if
+ 
        block => block % next
     enddo
 
@@ -1082,10 +1136,12 @@ contains
          velocitySolverPool, &
          icestatePool, &
          boundaryPool, &
-         oceanCouplingPool
+         oceanCouplingPool, &
+         meshPool
 
     integer, dimension(:), pointer :: &
-         solveVelocity
+         solveVelocity, &
+         solveVelocityCGrid
 
     real(kind=RKIND), dimension(:), pointer :: &
          iceAreaVertex, &
@@ -1093,20 +1149,33 @@ contains
 
     integer, dimension(:), pointer :: &
          interiorVertex, &
+         interiorEdge, &
          landIceMaskVertex
 
+    integer, dimension(:,:), pointer :: &
+         verticesOnEdge
+
     integer :: &
-         iVertex
+         iVertex, &
+         iEdge, &
+         iVertOnEdge
 
     integer, pointer :: &
          nVerticesSolve, &
-         nVertices
+         nVertices, &
+         nEdgesSolve, &
+         nEdges
+
+    logical, pointer :: &
+         config_use_c_grid
 
     block => domain % blocklist
     do while (associated(block))
 
        call MPAS_pool_get_dimension(block % dimensions, "nVerticesSolve", nVerticesSolve)
        call MPAS_pool_get_dimension(block % dimensions, "nVertices", nVertices)
+       call MPAS_pool_get_dimension(block % dimensions, "nEdgesSolve", nEdgesSolve)
+       call MPAS_pool_get_dimension(block % dimensions, "nEdges", nEdges)
 
        call MPAS_pool_get_subpool(block % structs, "velocity_solver", velocitySolverPool)
        call MPAS_pool_get_subpool(block % structs, "icestate", icestatePool)
@@ -1114,38 +1183,74 @@ contains
        call MPAS_pool_get_subpool(block % structs, "ocean_coupling", oceanCouplingPool)
 
        call MPAS_pool_get_array(velocitySolverPool, "solveVelocity", solveVelocity)
+       call MPAS_pool_get_array(velocitySolverPool, "solveVelocityCGrid", solveVelocityCGrid)
 
        call MPAS_pool_get_array(icestatePool, "iceAreaVertex", iceAreaVertex)
        call MPAS_pool_get_array(icestatePool, "totalMassVertex", totalMassVertex)
 
        call MPAS_pool_get_array(boundaryPool, "interiorVertex", interiorVertex)
+       call MPAS_pool_get_array(boundaryPool, "interiorEdge", interiorEdge)
 
        call MPAS_pool_get_array(oceanCouplingPool, "landIceMaskVertex", landIceMaskVertex)
 
-       do iVertex = 1, nVerticesSolve
+       call MPAS_pool_get_config(block % configs, "config_use_c_grid", config_use_c_grid)
 
-          solveVelocity(iVertex) = 0
+       ! this if statement can be placed here only when solveVelocity is not needed anymore
+       !if (.not. config_use_c_grid) then
 
-          if (interiorVertex(iVertex) == 1 .and. &
-              landIceMaskVertex(iVertex) == 0 .and. &
-              iceAreaVertex(iVertex) > seaiceAreaMinimum .and. &
-              totalMassVertex(iVertex) > seaiceMassMinimum) then
+          do iVertex = 1, nVerticesSolve
 
-             ! this vertex has sufficient ice
-             solveVelocity(iVertex) = 1
+             solveVelocity(iVertex) = 0
 
-          endif
+             if (interiorVertex(iVertex) == 1 .and. &
+                 landIceMaskVertex(iVertex) == 0 .and. &
+                 iceAreaVertex(iVertex) > seaiceAreaMinimum .and. &
+                 totalMassVertex(iVertex) > seaiceMassMinimum) then
 
-       enddo ! iVertex
+                ! this vertex has sufficient ice
+                solveVelocity(iVertex) = 1
 
-       do iVertex = nVerticesSolve+1, nVertices
+             endif
 
-          solveVelocity(iVertex) = 0
+          end do ! iVertex
 
-       enddo ! iVertex
+          do iVertex = nVerticesSolve+1, nVertices
+
+             solveVelocity(iVertex) = 0
+
+          end do ! iVertex
+
+       !else
+
+          call MPAS_pool_get_array(meshPool, "verticesOnEdge", verticesOnEdge)
+
+          solveVelocityCGrid(:) = 0
+
+          do iEdge = 1, nEdgesSolve 
+
+             do iVertOnEdge = 1, 2
+
+                if (interiorEdge(iEdge) == 1 .and. &
+                    landIceMaskVertex(verticesOnEdge(iVertOnEdge, iEdge)) == 0 .and. &
+                    iceAreaVertex(verticesOnEdge(iVertOnEdge, iEdge)) > seaiceAreaMinimum .and. &
+                    totalMassVertex(verticesOnEdge(iVertOnEdge, iEdge)) > seaiceMassMinimum) then
+
+                   ! this edge has sufficient ice
+                   solveVelocityCGrid(iEdge) = 1
+
+                   exit
+
+                end if
+
+             end do           
+
+          end do
+
+       !end if
 
        block => block % next
-    enddo
+    end do
+
 
   end subroutine velocity_calculation_mask!}}}
 
@@ -2236,12 +2341,18 @@ contains
          velocityWeakPool
 
     real(kind=RKIND), dimension(:,:), pointer :: &
-         strain11Var, &
-         strain22Var, &
-         strain12Var, &
-         stress11Var, &
-         stress22Var, &
-         stress12Var
+         strain11Var,       &
+         strain22Var,       &
+         strain12Var,       &
+         strain11VarTri,    &
+         strain22VarTri,    &
+         strain12VarTri,    &
+         stress11Var,       &
+         stress22Var,       &
+         stress12Var,       &
+         stress11VarTri,    &
+         stress22VarTri,    &
+         stress12VarTri
 
     real(kind=RKIND), dimension(:), pointer :: &
          strain11Weak, &
@@ -2254,20 +2365,27 @@ contains
     real(kind=RKIND), dimension(:), pointer :: &
          stressDivergenceU, &
          stressDivergenceV, &
+         stressDivergenceUCGrid, &
+         stressDivergenceVCGrid, &
          uVelocity, &
          vVelocity, &
          oceanStressCoeff
 
     integer, dimension(:), pointer :: &
-         solveStress, &
+         solveStress,    &
+         solveStressTri, &
          solveVelocity
 
     integer, pointer :: &
          nCells, &
+         nVertices, &
          nVerticesSolve
 
     character(len=strKIND), pointer :: &
          config_stress_divergence_scheme
+
+    logical, pointer :: &
+         config_use_c_grid
 
     integer :: &
          iCell, &
@@ -2278,14 +2396,28 @@ contains
     block => domain % blocklist
     do while (associated(block))
 
+       call MPAS_pool_get_config(block % configs, "config_use_c_grid", config_use_c_grid)
        call MPAS_pool_get_subpool(block % structs, "velocity_solver", velocitySolverPool)
 
-       ! divergence of stress
-       call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceU", stressDivergenceU)
-       call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceV", stressDivergenceV)
+       if ( .not. config_use_c_grid ) then
 
-       stressDivergenceU = 0.0_RKIND
-       stressDivergenceV = 0.0_RKIND
+          ! divergence of stress
+          call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceU", stressDivergenceU)
+          call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceV", stressDivergenceV)
+
+          stressDivergenceU = 0.0_RKIND
+          stressDivergenceV = 0.0_RKIND
+
+       else
+
+          ! divergence of stress
+          call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceUCGrid", stressDivergenceUCGrid)
+          call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceVCGrid", stressDivergenceVCGrid)
+
+          stressDivergenceUCGrid = 0.0_RKIND
+          stressDivergenceVCGrid = 0.0_RKIND
+       
+       end if
 
        ! sea ice velocity
        call MPAS_pool_get_array(velocitySolverPool, "solveVelocity", solveVelocity)
@@ -2323,6 +2455,19 @@ contains
           strain22Var = 0.0_RKIND
           strain12Var = 0.0_RKIND
 
+          if (config_use_c_grid) then
+
+             ! strains
+             call MPAS_pool_get_array(velocityVariationalPool, "strain11Tri", strain11VarTri)
+             call MPAS_pool_get_array(velocityVariationalPool, "strain22Tri", strain22VarTri)
+             call MPAS_pool_get_array(velocityVariationalPool, "strain12Tri", strain12VarTri)
+
+             strain11VarTri = 0.0_RKIND
+             strain22VarTri = 0.0_RKIND
+             strain12VarTri = 0.0_RKIND
+
+          end if
+
           ! stresses
           call MPAS_pool_get_array(velocitySolverPool, "solveStress", solveStress)
 
@@ -2343,6 +2488,31 @@ contains
              endif
 
           enddo ! iCell
+
+          if (config_use_c_grid) then
+
+             ! stresses
+             call MPAS_pool_get_array(velocitySolverPool, "solveStressTri", solveStressTri)
+
+             call MPAS_pool_get_array(velocityVariationalPool, "stress11Tri", stress11VarTri)
+             call MPAS_pool_get_array(velocityVariationalPool, "stress22Tri", stress22VarTri)
+             call MPAS_pool_get_array(velocityVariationalPool, "stress12Tri", stress12VarTri)
+
+             call MPAS_pool_get_dimension(block % dimensions, "nVertices", nVertices)
+
+             do iVertex = 1, nVertices
+
+                if (solveStressTri(iVertex) /= 1) then
+  
+                   stress11VarTri(:,iVertex) = 0.0_RKIND
+                   stress22VarTri(:,iVertex) = 0.0_RKIND
+                   stress12VarTri(:,iVertex) = 0.0_RKIND
+
+                endif
+
+             end do ! iVertex
+
+          end if
 
        else if (trim(config_stress_divergence_scheme) == "weak") then
 
@@ -2621,6 +2791,7 @@ contains
          triangleEdgesAtEdge, &
          icePressure, &
          solveStress, &
+         solveStressTri, &
          solveVelocity, &
          stress11var => stress11, &
          stress22var => stress22, &
@@ -2700,10 +2871,8 @@ contains
          variationalDenominator, &
          variationalDenominatorCGrid
 
-    integer :: &   !TODO: add to namelist
+    logical, pointer :: &
          config_use_c_grid
-
-    config_use_c_grid = 1
 
     blockPtr => domain % blocklist
     do while (associated(blockPtr))
@@ -2747,7 +2916,10 @@ contains
 
           call MPAS_pool_get_array(velocityVariationalPool, "replacementPressure", replacementPressureVar)
           call MPAS_pool_get_array(velocityVariationalPool, "variationalDenominator", variationalDenominator)
-          if (config_use_c_grid == 1) then
+
+          call MPAS_pool_get_config(blockPtr % configs, "config_use_c_grid", config_use_c_grid)
+
+          if (config_use_c_grid) then
              call MPAS_pool_get_array(velocityVariationalPool, "strain11Tri", strain11varTri)
              call MPAS_pool_get_array(velocityVariationalPool, "strain22Tri", strain22varTri)
              call MPAS_pool_get_array(velocityVariationalPool, "strain12Tri", strain12varTri)
@@ -2776,7 +2948,7 @@ contains
        else if (strainSchemeType == VARIATIONAL_STRAIN_SCHEME) then
 
           call mpas_timer_start("Velocity solver strain tensor")
-          if (config_use_c_grid == 0) then
+          if ( .not. config_use_c_grid ) then
              call seaice_strain_tensor_variational(&
                   meshPool, &
                   strain11var, &
@@ -2803,7 +2975,9 @@ contains
                   basisGradientV, &
                   basisGradientUTri, &
                   basisGradientVTri, &
-                  tanLatEdgeRotatedOverRadius)
+                  tanLatEdgeRotatedOverRadius, &
+                  solveStress, &
+                  solveStressTri)
           end if
           call mpas_timer_stop("Velocity solver strain tensor")
 
@@ -2860,7 +3034,7 @@ contains
        else if (stressDivergenceSchemeType == VARIATIONAL_STRESS_DIVERGENCE_SCHEME) then
 
           call mpas_timer_start("Velocity solver stress tensor")
-          if (config_use_c_grid == 0) then
+          if ( .not. config_use_c_grid ) then
              call seaice_stress_tensor_variational(&
                   meshPool, &
                   stress11var, &
@@ -2892,6 +3066,8 @@ contains
                   icePressure, &
                   replacementPressureVar, &
                   replacementPressureVarTri, &
+                  solveStress, &
+                  solveStressTri, &
                   elasticTimeStep)
           end if
           call mpas_timer_stop("Velocity solver stress tensor")
@@ -2917,7 +3093,7 @@ contains
        else if (stressDivergenceSchemeType == VARIATIONAL_STRESS_DIVERGENCE_SCHEME) then
 
           call mpas_timer_start("Velocity solver stress divergence")
-          if (config_use_c_grid == 0) then
+          if ( .not. config_use_c_grid ) then
              call seaice_stress_divergence_variational(&
                   meshPool, &
                   stressDivergenceU, &
@@ -3205,10 +3381,16 @@ contains
 
     type(MPAS_pool_type), pointer :: &
          velocitySolverPool, &
-         icestatePool
+         icestatePool, &
+         meshPool
 
     integer, dimension(:), pointer :: &
-         solveVelocity
+         solveVelocity, &
+         solveVelocityCGrid
+
+    integer, dimension(:,:), pointer :: &
+         verticesOnEdge, &
+         edgesOnVertex
 
     real(kind=RKIND), dimension(:), pointer :: &
          uVelocity, &
@@ -3217,13 +3399,16 @@ contains
          totalMassVertexfVertex, &
          stressDivergenceU, &
          stressDivergenceV, &
+         stressDivergenceUCgrid, &
+         stressDivergenceVCGrid, &
          airStressVertexU, &
          airStressVertexV, &
          surfaceTiltForceU, &
          surfaceTiltForceV, &
          oceanStressU, &
          oceanStressV, &
-         oceanStressCoeff
+         oceanStressCoeff, &
+         variationalDenominatorCGrid
 
     real(kind=RKIND), pointer :: &
          elasticTimeStep
@@ -3235,18 +3420,44 @@ contains
          leftMatrix
 
     real(kind=RKIND) :: &
-         solutionDenominator
+         solutionDenominator, &
+         sumOfDiamonds
 
     integer, pointer :: &
-         nVerticesSolve
+         nVerticesSolve, &
+         nVertices, &
+         nEdgesSolve, &
+         nEdges, &
+         vertexDegree
 
     integer :: &
-         iVertex
+         iVertex, &
+         iEdge, &
+         vertexOnEdge1, &
+         vertexOnEdge2, &
+         iEdgeOnVertex
+
+    logical, pointer :: &
+         config_use_c_grid
+
+    real(kind=RKIND), dimension(:), allocatable :: &
+         uVelocityCGrid, &
+         vVelocityCGrid, &
+         totalMassEdge, &
+         airStressEdgeU, &
+         airStressEdgeV, &
+         surfaceTiltForceEdgeU, &
+         surfaceTiltForceEdgeV, &
+         totalMassVertexfEdge, &
+         oceanStressEdgeU, &
+         oceanStressEdgeV, &
+         oceanStressCoeffEdge
 
     block => domain % blocklist
     do while (associated(block))
 
        call MPAS_pool_get_dimension(block % dimensions, "nVerticesSolve", nVerticesSolve)
+       call MPAS_pool_get_dimension(block % dimensions, "nVertices", nVertices)
 
        call MPAS_pool_get_subpool(block % structs, "velocity_solver", velocitySolverPool)
        call MPAS_pool_get_subpool(block % structs, "icestate", icestatePool)
@@ -3267,6 +3478,10 @@ contains
        call MPAS_pool_get_array(velocitySolverPool, "oceanStressU", oceanStressU)
        call MPAS_pool_get_array(velocitySolverPool, "oceanStressV", oceanStressV)
        call MPAS_pool_get_array(velocitySolverPool, "oceanStressCoeff", oceanStressCoeff)
+
+       call MPAS_pool_get_config(block % configs, "config_use_c_grid", config_use_c_grid)
+
+       if (.not. config_use_c_grid) then
 
 #ifdef MPAS_OPENMP
 !$omp parallel do default(shared) private(iVertex, leftMatrix, rightHandSide, solutionDenominator)
@@ -3303,6 +3518,113 @@ contains
           endif ! solveVelocity
 
        enddo ! iVertex
+
+       else
+
+          call MPAS_pool_get_dimension(block % dimensions, "vertexDegree", vertexDegree)
+          call MPAS_pool_get_dimension(block % dimensions, "nEdges", nEdges)
+          call MPAS_pool_get_dimension(block % dimensions, "nEdgesSolve", nEdgesSolve)
+
+          call MPAS_pool_get_array(meshPool, "verticesOnEdge", verticesOnEdge)
+          call MPAS_pool_get_array(meshPool, "edgesOnVertex", edgesOnVertex)
+          call MPAS_pool_get_array(velocitySolverPool, "solveVelocityCGrid", solveVelocityCGrid)
+          call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceUCGrid", stressDivergenceUCGrid)
+          call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceVCGrid", stressDivergenceVCGrid)
+          call MPAS_pool_get_array(velocitySolverPool, "variationalDenominatorCGrid", variationalDenominatorCGrid)
+
+          allocate(uVelocityCGrid(nEdges))
+          allocate(vVelocityCGrid(nEdges))
+          allocate(totalMassEdge(nEdges))
+          allocate(airStressEdgeU(nEdges))
+          allocate(airStressEdgeV(nEdges))
+          allocate(surfaceTiltForceEdgeU(nEdges))
+          allocate(surfaceTiltForceEdgeV(nEdges))
+          allocate(totalMassVertexfEdge(nEdges))
+          allocate(oceanStressEdgeU(nEdges))
+          allocate(oceanStressEdgeV(nEdges))
+          allocate(oceanStressCoeffEdge(nEdges))
+
+          ! INTERPOLATION OF ALL THE RELEVANT QUANTITIES FROM VERTICES TO EDGES
+          do iEdge = 1, nEdges
+
+             vertexOnEdge1 = verticesOnEdge(1,iEdge)
+             vertexOnEdge2 = verticesOnEdge(2,iEdge)
+
+             uVelocityCGrid(iEdge) = 0.5_RKIND * (uVelocity(vertexOnEdge1) + uVelocity(vertexOnEdge2))
+             vVelocityCGrid(iEdge) = 0.5_RKIND * (vVelocity(vertexOnEdge1) + vVelocity(vertexOnEdge2))
+             totalMassEdge(iEdge) = 0.5_RKIND * (totalMassVertex(vertexOnEdge1) + totalMassVertex(vertexOnEdge2))
+             totalMassVertexfEdge(iEdge) = 0.5_RKIND * (totalMassVertexfVertex(vertexOnEdge1) + totalMassVertexfVertex(vertexOnEdge2))
+             airStressEdgeU(iEdge) = 0.5_RKIND * (airStressVertexU(vertexOnEdge1) + airStressVertexU(vertexOnEdge2))
+             airStressEdgeV(iEdge) = 0.5_RKIND * (airStressVertexV(vertexOnEdge1) + airStressVertexV(vertexOnEdge2))
+             surfaceTiltForceEdgeU(iEdge) = 0.5_RKIND * (surfaceTiltForceU(vertexOnEdge1) + surfaceTiltForceU(vertexOnEdge2))
+             surfaceTiltForceEdgeV(iEdge) = 0.5_RKIND * (surfaceTiltForceV(vertexOnEdge1) + surfaceTiltForceV(vertexOnEdge2))
+             oceanStressEdgeU(iEdge) = 0.5_RKIND * (oceanStressEdgeU(vertexOnEdge1) + oceanStressEdgeU(vertexOnEdge2))
+             oceanStressEdgeV(iEdge) = 0.5_RKIND * (oceanStressEdgeV(vertexOnEdge1) + oceanStressEdgeV(vertexOnEdge2))
+             oceanStressCoeffEdge(iEdge) = 0.5_RKIND * (oceanStressCoeffEdge(vertexOnEdge1) + oceanStressCoeffEdge(vertexOnEdge2))
+
+          end do
+
+          do iEdge = 1, nEdgesSolve
+
+             if (solveVelocityCGrid(iEdge) == 1) then
+
+                ! U equation
+                leftMatrix(1,1) =  totalMassEdge(iEdge) / elasticTimeStep + oceanStressCoeffEdge(iEdge) * cosOceanTurningAngle
+                leftMatrix(1,2) =  - totalMassVertexfEdge(iEdge) - & 
+                                   oceanStressCoeffEdge(iEdge) * sinOceanTurningAngle * sign(1.0_RKIND,totalMassVertexfEdge(iEdge))
+
+                ! V equation
+                leftMatrix(2,1) = totalMassVertexfEdge(iEdge) + &
+                                  oceanStressCoeffEdge(iEdge) * sinOceanTurningAngle * sign(1.0_RKIND,totalMassVertexfEdge(iEdge))
+                leftMatrix(2,2) = totalMassEdge(iEdge) / elasticTimeStep  + oceanStressCoeffEdge(iEdge) * cosOceanTurningAngle
+
+                ! right hand side of matrix solve
+                rightHandSide(1) = stressDivergenceUCGrid(iEdge) + airStressEdgeU(iEdge) + surfaceTiltForceEdgeU(iEdge) + &
+                                   oceanStressCoeffEdge(iEdge) * oceanStressEdgeU(iEdge) + & 
+                                   (totalMassEdge(iEdge) * uVelocityCGrid(iEdge)) / elasticTimeStep
+
+                rightHandSide(2) = stressDivergenceVCGrid(iEdge) + airStressEdgeV(iEdge) + surfaceTiltForceEdgeV(iEdge) + &
+                                   oceanStressCoeffEdge(iEdge) * oceanStressEdgeV(iEdge) + &
+                                   (totalMassEdge(iEdge) * vVelocityCGrid(iEdge)) / elasticTimeStep
+
+                ! solve the equation
+                solutionDenominator = leftMatrix(1,1) * leftMatrix(2,2) - leftMatrix(1,2) * leftMatrix(2,1)
+
+                uVelocityCGrid(iEdge) = (leftMatrix(2,2) * rightHandSide(1) - leftMatrix(1,2) * rightHandSide(2)) / solutionDenominator
+                vVelocityCGrid(iEdge) = (leftMatrix(1,1) * rightHandSide(2) - leftMatrix(2,1) * rightHandSide(1)) / solutionDenominator
+
+             end if
+
+          end do
+
+          ! INTERPOLATION OF VELOCITY FROM VERTICES BACK TO EDGES
+
+          do iVertex = 1, nVertices 
+
+             sumOfDiamonds = 0.0_RKIND
+             do iEdgeOnVertex = 1, vertexDegree
+                sumOfDiamonds = sumOfDiamonds + variationalDenominatorCGrid(edgesOnVertex(iEdgeOnVertex,iVertex))               
+             end do
+             do iEdgeOnVertex = 1, vertexDegree
+                uVelocity(iVertex) = uVelocity(iVertex) * variationalDenominatorCGrid(edgesOnVertex(iEdgeOnVertex,iVertex)) / sumOfDiamonds
+                vVelocity(iVertex) = vVelocity(iVertex) * variationalDenominatorCGrid(edgesOnVertex(iEdgeOnVertex,iVertex)) / sumOfDiamonds
+             end do    
+
+          end do 
+
+          deallocate(uVelocityCGrid)
+          deallocate(vVelocityCGrid)
+          deallocate(totalMassEdge)
+          deallocate(airStressEdgeU)
+          deallocate(airStressEdgeV)
+          deallocate(surfaceTiltForceEdgeU)
+          deallocate(surfaceTiltForceEdgeV)
+          deallocate(totalMassVertexfEdge)
+          deallocate(oceanStressEdgeU)
+          deallocate(oceanStressEdgeV)
+          deallocate(oceanStressCoeffEdge)
+
+       end if
 
        block => block % next
     end do

@@ -644,6 +644,10 @@
 			description="Use the special boundaries velocity mask option."
 			possible_values="true or false"
 		/>
+		<nml_option name="config_use_c_grid" type="logical" default_value="false" units="unitless"
+			description="Use the C-grid formulation for the variational approach."
+			possible_values="true or false"
+		/>
 	</nml_record>
 
 	<nml_record name="advection" in_defaults="true">
@@ -3691,8 +3695,10 @@
 		<var name="edgeVelocity"			type="real"	dimensions="nEdges Time"		name_in_code="edgeVelocity"/>
 		<var name="normalVectorEdge"			type="real"	dimensions="TWO maxEdges nCells Time"	name_in_code="normalVectorEdge"/>
 		<var name="solveStress"	         		type="integer"	dimensions="nCells Time"		name_in_code="solveStress"/>
+		<var name="solveStressTri"	      		type="integer"	dimensions="nVertices Time"		name_in_code="solveStressTri"/>
 		<var name="solveVelocity"			type="integer"	dimensions="nVertices Time"		name_in_code="solveVelocity"/>
 		<var name="solveVelocityPrevious"		type="integer"	dimensions="nVertices Time"		name_in_code="solveVelocityPrevious"/>
+		<var name="solveVelocityCGrid"			type="integer"	dimensions="nEdges Time"		name_in_code="solveVelocityCGrid"/>
 		<var name="icePressure"		        	type="real"	dimensions="nCells Time"		name_in_code="icePressure"/>
 		<var name="stressDivergenceU"			type="real"	dimensions="nVertices Time"		name_in_code="stressDivergenceU"/>
 		<var name="stressDivergenceV"			type="real"	dimensions="nVertices Time"		name_in_code="stressDivergenceV"/>
