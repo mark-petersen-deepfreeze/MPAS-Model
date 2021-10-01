@@ -1177,6 +1177,8 @@ end subroutine variational_denominator_c_grid
        strain12Tri, &
        uVelocity, &
        vVelocity, &
+       uVelocityCGrid, &
+       vVelocityCGrid, &
        basisGradientU, &
        basisGradientV, &
        basisGradientUTri, &
@@ -1211,6 +1213,10 @@ end subroutine variational_denominator_c_grid
          vVelocity, & !< Input:
          tanLatEdgeRotatedOverRadius !< Input:
 
+    real(kind=RKIND), dimension(:), intent(inout) :: &
+         uVelocityCGrid, & !< Input:
+         vVelocityCGrid    !< Input:
+
     real(kind=RKIND), dimension(:,:,:), contiguous, intent(in) :: &
          basisGradientU, & !< Input:
          basisGradientV, & !< Input:
@@ -1235,13 +1241,6 @@ end subroutine variational_denominator_c_grid
          strain11Tmp, &
          strain22Tmp, &
          strain12Tmp
-
-    real(kind=RKIND), dimension(:), allocatable :: &
-         uVelocityCGrid, &
-         vVelocityCGrid
-
-    allocate(uVelocityCGrid(nEdges))
-    allocate(vVelocityCGrid(nEdges))
 
     ! NOTE: INTERPOLATION OF VELOCITY FROM VERTEX LOCATIONS TO EDGE LOCATIONS
     do iEdge = 1, nEdges
@@ -1332,9 +1331,6 @@ end subroutine variational_denominator_c_grid
        end if !solveStressTri
 
     end do ! iVertex
-
-    deallocate(uVelocityCGrid)
-    deallocate(vVelocityCGrid)
 
   end subroutine seaice_strain_tensor_variational_c_grid !}}}
 

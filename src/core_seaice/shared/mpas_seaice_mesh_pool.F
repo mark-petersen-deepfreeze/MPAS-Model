@@ -52,6 +52,8 @@ module seaice_mesh_pool
       icePressure,    &
       uVelocity,      &
       vVelocity,      &
+      uVelocityCGrid,      &
+      vVelocityCGrid,      &
       stressDivergenceU, &
       stressDivergenceV
 
@@ -161,6 +163,8 @@ contains
        call MPAS_pool_get_array(velocitySolverPool, "icePressure",       icePressure)
        call MPAS_pool_get_array(velocitySolverPool, "uVelocity",         uVelocity)
        call MPAS_pool_get_array(velocitySolverPool, "vVelocity",         vVelocity)
+       call MPAS_pool_get_array(velocitySolverPool, "uVelocityCGrid",         uVelocityCGrid)
+       call MPAS_pool_get_array(velocitySolverPool, "vVelocityCGrid",         vVelocityCGrid)
        call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceU", stressDivergenceU)
        call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceV", stressDivergenceV)
 
@@ -208,6 +212,8 @@ contains
 !$GPUC   icePressure,                   &
 !$GPUC   uVelocity,                     &
 !$GPUC   vVelocity,                     &
+!$GPUC   uVelocityCGrid,                &
+!$GPUC   vVelocityCGrid,                &
 !$GPUC   stressDivergenceU,             &
 !$GPUC   stressDivergenceV,             &
 !$GPUC   basisGradientU,                &
@@ -280,6 +286,8 @@ contains
 !$GPUC   icePressure,                   &
 !$GPUC   uVelocity,                     &
 !$GPUC   vVelocity,                     &
+!$GPUC   uVelocityCGrid,                &
+!$GPUC   vVelocityCGrid,                &
 !$GPUC   stressDivergenceU,             &
 !$GPUC   stressDivergenceV,             &
 !$GPUC   basisGradientU,                &
@@ -323,6 +331,8 @@ contains
          icePressure,             &
          uVelocity,               &
          vVelocity,               &
+         uVelocityCGrid,          &
+         vVelocityCGrid,          &
          stressDivergenceU,       &
          stressDivergenceV,       &
          basisGradientU,          &
@@ -376,6 +386,8 @@ contains
 !$GPUC   icePressure,          &
 !$GPUC   uVelocity,            &
 !$GPUC   vVelocity,            &
+!$GPUC   uVelocityCGrid,       &
+!$GPUC   vVelocityCGrid,       &
 !$GPUC   stress11,             &
 !$GPUC   stress12,             &
 !$GPUC   stress22              &

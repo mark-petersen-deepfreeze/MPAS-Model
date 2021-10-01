@@ -566,6 +566,15 @@ contains
          i2, &
          jVertex
 
+    integer, dimension(:), allocatable :: &
+         skipCell
+
+    real(kind=RKIND) :: &
+         denom
+
+    allocate(skipCell(nCells))
+    skipCell(:) = 0
+
     ! loop over cells
     do iCell = 1, nCells
 
@@ -577,21 +586,34 @@ contains
           i2 = iVertex
           if (i1 < 1) i1 = i1 + nEdgesOnCell(iCell)
 
+          denom = (xLocal(i1,iCell) * yLocal(i2,iCell) - xLocal(i2,iCell) * yLocal(i1,iCell))
+
+          if( abs(denom) < 1.e-10_RKIND) then
+
+             skipCell(iCell) = 1
+             wachspressA(:,iCell) = 1.0_RKIND 
+             wachspressB(:,iCell) = 1.0_RKIND 
+             exit
+
+          else
+
           ! solve for the line segment equation
-          wachspressA(iVertex, iCell) = &
-               (yLocal(i2,iCell) - yLocal(i1,iCell)) / (xLocal(i1,iCell) * yLocal(i2,iCell) - xLocal(i2,iCell) * yLocal(i1,iCell))
-          wachspressB(iVertex, iCell) = &
-               (xLocal(i1,iCell) - xLocal(i2,iCell)) / (xLocal(i1,iCell) * yLocal(i2,iCell) - xLocal(i2,iCell) * yLocal(i1,iCell))
+             wachspressA(iVertex, iCell) = (yLocal(i2,iCell) - yLocal(i1,iCell)) / denom
+             wachspressB(iVertex, iCell) = (xLocal(i1,iCell) - xLocal(i2,iCell)) / denom
 
-       enddo ! iVertex
+          end if
 
-       ! loop over vertices
-       do iVertex = 1, nEdgesOnCell(iCell)
+       end do ! iVertex
 
-          ! determine kappa
-          wachspressKappa(1,iVertex,iCell) = 1.0_RKIND
+       if (skipCell(iCell) == 0) then
 
-          do jVertex = 2, nEdgesOnCell(iCell)
+          ! loop over vertices
+          do iVertex = 1, nEdgesOnCell(iCell)
+
+             ! determine kappa
+             wachspressKappa(1,iVertex,iCell) = 1.0_RKIND
+
+             do jVertex = 2, nEdgesOnCell(iCell)
 
              ! previous, this and next vertex
              i0 = jVertex - 1
@@ -599,17 +621,25 @@ contains
              i2 = jVertex + 1
              if (i2 > nEdgesOnCell(iCell)) i2 = i2 - nEdgesOnCell(iCell)
 
-             wachspressKappa(jVertex,iVertex,iCell) = wachspressKappa(jVertex-1,iVertex,iCell) * &
-                  (wachspressA(i2,iCell) * (xLocal(i0,iCell) - xLocal(i1,iCell)) + &
-                   wachspressB(i2,iCell) * (yLocal(i0,iCell) - yLocal(i1,iCell))) / &
-                  (wachspressA(i0,iCell) * (xLocal(i1,iCell) - xLocal(i0,iCell)) + &
-                   wachspressB(i0,iCell) * (yLocal(i1,iCell) - yLocal(i0,iCell)))
+                wachspressKappa(jVertex,iVertex,iCell) = wachspressKappa(jVertex-1,iVertex,iCell) * &
+                     (wachspressA(i2,iCell) * (xLocal(i0,iCell) - xLocal(i1,iCell)) + &
+                      wachspressB(i2,iCell) * (yLocal(i0,iCell) - yLocal(i1,iCell))) / &
+                     (wachspressA(i0,iCell) * (xLocal(i1,iCell) - xLocal(i0,iCell)) + &
+                      wachspressB(i0,iCell) * (yLocal(i1,iCell) - yLocal(i0,iCell)))
 
-          enddo ! jVertex
+             enddo ! jVertex
 
-       enddo ! iVertex
+          enddo ! iVertex
+     
+       else 
+
+          wachspressKappa(:,:,iCell) = 1.0_RKIND      
+
+       end if
 
     enddo ! iCell
+
+    deallocate(skipCell)
 
   end subroutine calc_wachspress_coefficients!}}}
 
