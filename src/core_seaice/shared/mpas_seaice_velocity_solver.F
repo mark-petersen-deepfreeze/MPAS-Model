@@ -3407,6 +3407,7 @@ contains
     type(MPAS_pool_type), pointer :: &
          velocitySolverPool, &
          icestatePool, &
+         velocityVariationalPool, &
          meshPool
 
     integer, dimension(:), pointer :: &
@@ -3550,13 +3551,14 @@ contains
           call MPAS_pool_get_dimension(block % dimensions, "nEdges", nEdges)
           call MPAS_pool_get_dimension(block % dimensions, "nEdgesSolve", nEdgesSolve)
           call MPAS_pool_get_subpool(block % structs, "mesh", meshPool)
+          call MPAS_pool_get_subpool(block % structs, "velocity_variational", velocityVariationalPool)
 
           call MPAS_pool_get_array(meshPool, "verticesOnEdge", verticesOnEdge)
           call MPAS_pool_get_array(meshPool, "edgesOnVertex", edgesOnVertex)
           call MPAS_pool_get_array(velocitySolverPool, "solveVelocityCGrid", solveVelocityCGrid)
           call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceUCGrid", stressDivergenceUCGrid)
           call MPAS_pool_get_array(velocitySolverPool, "stressDivergenceVCGrid", stressDivergenceVCGrid)
-          call MPAS_pool_get_array(velocitySolverPool, "variationalDenominatorCGrid", variationalDenominatorCGrid)
+          call MPAS_pool_get_array(velocityVariationalPool, "variationalDenominatorCGrid", variationalDenominatorCGrid)
           call MPAS_pool_get_array(velocitySolverPool, "uVelocityCGrid", uVelocityCGrid)
           call MPAS_pool_get_array(velocitySolverPool, "vVelocityCGrid", vVelocityCGrid)
 
@@ -3633,7 +3635,6 @@ contains
              uVelocity(iVertex) = 0.0_RKIND
              vVelocity(iVertex) = 0.0_RKIND
              do iEdgeOnVertex = 1, vertexDegree
-                print*, size(stressDivergenceUCGrid), size(variationalDenominatorCGrid), "---------------------"
                 sumOfDiamonds = sumOfDiamonds + variationalDenominatorCGrid(edgesOnVertex(iEdgeOnVertex,iVertex))               
              end do
              do iEdgeOnVertex = 1, vertexDegree
