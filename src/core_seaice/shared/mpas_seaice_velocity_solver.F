@@ -2814,6 +2814,7 @@ contains
          solveStress, &
          solveStressTri, &
          solveVelocity, &
+         solveVelocityCGrid, &
          stress11var => stress11, &
          stress22var => stress22, &
          stress12var => stress12, &
@@ -3002,7 +3003,8 @@ contains
                   basisGradientVTri, &
                   tanLatEdgeRotatedOverRadius, &
                   solveStress, &
-                  solveStressTri)
+                  solveStressTri, &
+                  solveVelocityCGrid)
           end if
           call mpas_timer_stop("Velocity solver strain tensor")
 
@@ -3154,7 +3156,8 @@ contains
                   variationalDenominatorCGrid, &
                   tanLatEdgeRotatedOverRadius, &
                   cellEdgesAtEdge, &
-                  triangleEdgesAtEdge)
+                  triangleEdgesAtEdge, &
+                  solveVelocityCGrid)
           end if 
           call mpas_timer_stop("Velocity solver stress divergence")
 
@@ -3449,7 +3452,8 @@ contains
 
     real(kind=RKIND) :: &
          solutionDenominator, &
-         sumOfDiamonds
+         sumOfDiamonds, &
+         coeff
 
     integer, pointer :: &
          nVerticesSolve, &
@@ -3572,31 +3576,28 @@ contains
           allocate(oceanStressEdgeV(nEdgesSolve))
           allocate(oceanStressCoeffEdge(nEdgesSolve))
 
-          ! INTERPOLATION OF ALL THE RELEVANT QUANTITIES FROM VERTICES TO EDGES
-          ! (should I do a halo update of the quantities at the vertices first
-          ! and then one for the ones at the edges afterward?)
-          do iEdge = 1, nEdgesSolve
-
-             vertexOnEdge1 = verticesOnEdge(1,iEdge)
-             vertexOnEdge2 = verticesOnEdge(2,iEdge)
-
-             uVelocityCGrid(iEdge) = 0.5_RKIND * (uVelocity(vertexOnEdge1) + uVelocity(vertexOnEdge2))
-             vVelocityCGrid(iEdge) = 0.5_RKIND * (vVelocity(vertexOnEdge1) + vVelocity(vertexOnEdge2))
-             totalMassEdge(iEdge) = 0.5_RKIND * (totalMassVertex(vertexOnEdge1) + totalMassVertex(vertexOnEdge2))
-             totalMassVertexfEdge(iEdge) = 0.5_RKIND * (totalMassVertexfVertex(vertexOnEdge1) + totalMassVertexfVertex(vertexOnEdge2))
-             airStressEdgeU(iEdge) = 0.5_RKIND * (airStressVertexU(vertexOnEdge1) + airStressVertexU(vertexOnEdge2))
-             airStressEdgeV(iEdge) = 0.5_RKIND * (airStressVertexV(vertexOnEdge1) + airStressVertexV(vertexOnEdge2))
-             surfaceTiltForceEdgeU(iEdge) = 0.5_RKIND * (surfaceTiltForceU(vertexOnEdge1) + surfaceTiltForceU(vertexOnEdge2))
-             surfaceTiltForceEdgeV(iEdge) = 0.5_RKIND * (surfaceTiltForceV(vertexOnEdge1) + surfaceTiltForceV(vertexOnEdge2))
-             oceanStressEdgeU(iEdge) = 0.5_RKIND * (oceanStressEdgeU(vertexOnEdge1) + oceanStressEdgeU(vertexOnEdge2))
-             oceanStressEdgeV(iEdge) = 0.5_RKIND * (oceanStressEdgeV(vertexOnEdge1) + oceanStressEdgeV(vertexOnEdge2))
-             oceanStressCoeffEdge(iEdge) = 0.5_RKIND * (oceanStressCoeffEdge(vertexOnEdge1) + oceanStressCoeffEdge(vertexOnEdge2))
-
-          end do
-
           do iEdge = 1, nEdgesSolve
 
              if (solveVelocityCGrid(iEdge) == 1) then
+
+                ! INTERPOLATION OF ALL THE RELEVANT QUANTITIES FROM VERTICES TO EDGES
+                ! (should I do a halo update of the quantities at the vertices first
+                ! and then one for the ones at the edges afterward?)
+
+                vertexOnEdge1 = verticesOnEdge(1,iEdge)
+                vertexOnEdge2 = verticesOnEdge(2,iEdge)
+
+                uVelocityCGrid(iEdge) = 0.5_RKIND * (uVelocity(vertexOnEdge1) + uVelocity(vertexOnEdge2))
+                vVelocityCGrid(iEdge) = 0.5_RKIND * (vVelocity(vertexOnEdge1) + vVelocity(vertexOnEdge2))
+                totalMassEdge(iEdge) = 0.5_RKIND * (totalMassVertex(vertexOnEdge1) + totalMassVertex(vertexOnEdge2))
+                totalMassVertexfEdge(iEdge) = 0.5_RKIND * (totalMassVertexfVertex(vertexOnEdge1) + totalMassVertexfVertex(vertexOnEdge2))
+                airStressEdgeU(iEdge) = 0.5_RKIND * (airStressVertexU(vertexOnEdge1) + airStressVertexU(vertexOnEdge2))
+                airStressEdgeV(iEdge) = 0.5_RKIND * (airStressVertexV(vertexOnEdge1) + airStressVertexV(vertexOnEdge2))
+                surfaceTiltForceEdgeU(iEdge) = 0.5_RKIND * (surfaceTiltForceU(vertexOnEdge1) + surfaceTiltForceU(vertexOnEdge2))
+                surfaceTiltForceEdgeV(iEdge) = 0.5_RKIND * (surfaceTiltForceV(vertexOnEdge1) + surfaceTiltForceV(vertexOnEdge2))
+                oceanStressEdgeU(iEdge) = 0.5_RKIND * (oceanStressU(vertexOnEdge1) + oceanStressU(vertexOnEdge2))
+                oceanStressEdgeV(iEdge) = 0.5_RKIND * (oceanStressV(vertexOnEdge1) + oceanStressV(vertexOnEdge2))
+                oceanStressCoeffEdge(iEdge) = 0.5_RKIND * (oceanStressCoeff(vertexOnEdge1) + oceanStressCoeff(vertexOnEdge2))
 
                 ! U equation
                 leftMatrix(1,1) =  totalMassEdge(iEdge) / elasticTimeStep + oceanStressCoeffEdge(iEdge) * cosOceanTurningAngle
@@ -3629,19 +3630,26 @@ contains
 
           ! INTERPOLATION OF VELOCITY FROM VERTICES BACK TO EDGES
 
-          do iVertex = 1, nVerticesSolve 
+          do iVertex = 1, nVerticesSolve
 
-             sumOfDiamonds = 0.0_RKIND
-             uVelocity(iVertex) = 0.0_RKIND
-             vVelocity(iVertex) = 0.0_RKIND
-             do iEdgeOnVertex = 1, vertexDegree
-                sumOfDiamonds = sumOfDiamonds + variationalDenominatorCGrid(edgesOnVertex(iEdgeOnVertex,iVertex))               
-             end do
-             do iEdgeOnVertex = 1, vertexDegree
-                iEdge = edgesOnVertex(iEdgeOnVertex,iVertex)
-                uVelocity(iVertex) = uVelocity(iVertex) + uVelocityCGrid(iEdge) * variationalDenominatorCGrid(iEdge) / sumOfDiamonds
-                vVelocity(iVertex) = vVelocity(iVertex) + vVelocityCGrid(iEdge) * variationalDenominatorCGrid(iEdge) / sumOfDiamonds
-             end do    
+             if (solveVelocity(iVertex) == 1) then
+                sumOfDiamonds = 0.0_RKIND
+                do iEdgeOnVertex = 1, vertexDegree
+                   sumOfDiamonds = sumOfDiamonds + variationalDenominatorCGrid(edgesOnVertex(iEdgeOnVertex,iVertex))              
+                end do
+                uVelocity(iVertex) = 0.0_RKIND
+                vVelocity(iVertex) = 0.0_RKIND
+                stressDivergenceU(iVertex) = 0.0_RKIND
+                stressDivergenceV(iVertex) = 0.0_RKIND
+                do iEdgeOnVertex = 1, vertexDegree
+                   iEdge = edgesOnVertex(iEdgeOnVertex,iVertex)
+                   coeff = variationalDenominatorCGrid(iEdge) / sumOfDiamonds
+                   uVelocity(iVertex) = uVelocity(iVertex) + coeff * uVelocityCGrid(iEdge) 
+                   vVelocity(iVertex) = vVelocity(iVertex) + coeff * vVelocityCGrid(iEdge) 
+                   stressDivergenceU(iVertex) = stressDivergenceU(iVertex) + coeff * stressDivergenceUCGrid(iEdge) 
+                   stressDivergenceV(iVertex) = stressDivergenceV(iVertex) + coeff * stressDivergenceVCGrid(iEdge) 
+                end do    
+             end if
 
           end do 
 

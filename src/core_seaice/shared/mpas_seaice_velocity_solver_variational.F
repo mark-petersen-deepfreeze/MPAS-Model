@@ -136,7 +136,8 @@ contains
          seaice_init_velocity_solver_wachspress
 
     use seaice_velocity_solver_pwl, only: &
-         seaice_init_velocity_solver_pwl
+         seaice_init_velocity_solver_pwl, &
+         seaice_init_velocity_solver_pwl_c_grid
 
     type(MPAS_pool_type), pointer, intent(in) :: &
          mesh !< Input:
@@ -486,7 +487,7 @@ contains
                nEdgesOnCell, &
                verticesOnCell, &  !NOTE: this is actually not used
                edgesOnCell, &     !NOTE: this can be avoided if c in the function is computed
-               dvEdge, &          !NOTE: this can be avoided if c in the function is computed
+               dvEdge, &          !NOTE: this can be avoided if c in the function is computed 
                areaCell, &
                xLocal, &
                yLocal, &
@@ -496,13 +497,10 @@ contains
                basisIntegralsU, &
                basisIntegralsV)
        else
-          call seaice_init_velocity_solver_pwl(&
+          call seaice_init_velocity_solver_pwl_c_grid(&
                nCells, &
                maxEdges, &
                nEdgesOnCell, &
-               verticesOnCell, &  !NOTE: this was not used originally and it is not used also now
-               edgesOnCell, &     !NOTE: this can be avoided if c in the function is computed
-               dvEdge, &          !NOTE: this can be avoided if c in the function is computed
                areaCellCGrid, &
                xLocal, &
                yLocal, &
@@ -512,13 +510,10 @@ contains
                basisIntegralsU, &
                basisIntegralsV)
 
-          call seaice_init_velocity_solver_pwl(&
+          call seaice_init_velocity_solver_pwl_c_grid(&
                nVertices, &
                vertexDegree, &
                nEdgesOnVertex, &
-               verticesOnCell, &  !NOTE: this was not used originally and it is not used also now
-               edgesOnCell, &     !NOTE: this can be avoided if c in the function is computed
-               dvEdge, &          !NOTE: this can be avoided if c in the function is computed
                areaTriCGrid, &
                xLocalTri, &
                yLocalTri, &
@@ -1185,7 +1180,8 @@ end subroutine variational_denominator_c_grid
        basisGradientVTri, &
        tanLatEdgeRotatedOverRadius, &
        solveStress, &
-       solveStressTri)!{{{
+       solveStressTri, &
+       solveVelocityCGrid)!{{{
 
     use seaice_mesh_pool, only: &
          nCells, &
@@ -1225,7 +1221,8 @@ end subroutine variational_denominator_c_grid
 
     integer, dimension(:), intent(in) :: &
          solveStress, &  !< Input:
-         solveStressTri  !< Input:
+         solveStressTri, &  !< Input:
+         solveVelocityCGrid !< Input:
 
     integer :: &
          iCell, &
@@ -1244,12 +1241,16 @@ end subroutine variational_denominator_c_grid
 
     ! NOTE: INTERPOLATION OF VELOCITY FROM VERTEX LOCATIONS TO EDGE LOCATIONS
     do iEdge = 1, nEdges
- 
-       vertexOnEdge1 = verticesOnEdge(1,iEdge)
-       vertexOnEdge2 = verticesOnEdge(2,iEdge)
 
-       uVelocityCGrid(iEdge) = 0.5_RKIND * (uVelocity(vertexOnEdge1) + uVelocity(vertexOnEdge2))
-       vVelocityCGrid(iEdge) = 0.5_RKIND * (vVelocity(vertexOnEdge1) + vVelocity(vertexOnEdge2))
+       if (solveVelocityCGrid(iEdge) == 1) then 
+
+          vertexOnEdge1 = verticesOnEdge(1,iEdge)
+          vertexOnEdge2 = verticesOnEdge(2,iEdge)
+
+          uVelocityCGrid(iEdge) = 0.5_RKIND * (uVelocity(vertexOnEdge1) + uVelocity(vertexOnEdge2))
+          vVelocityCGrid(iEdge) = 0.5_RKIND * (vVelocity(vertexOnEdge1) + vVelocity(vertexOnEdge2))
+
+        end if
 
     end do
 
@@ -2151,7 +2152,8 @@ end subroutine variational_denominator_c_grid
        variationalDenominatorCGrid, &
        tanLatEdgeRotatedOverRadius, &
        cellEdgesAtEdge, &
-       triangleEdgesAtEdge)!{{{
+       triangleEdgesAtEdge, &
+       solveVelocityCGrid)!{{{
 
     use seaice_mesh_pool, only: &
          nEdges, &
@@ -2192,8 +2194,8 @@ end subroutine variational_denominator_c_grid
          cellEdgesAtEdge,     &   !< Input:
          triangleEdgesAtEdge      !< Input:
 
-    integer, dimension(:), pointer :: &
-         interiorEdge   
+    integer, dimension(:), intent(in) :: &
+         solveVelocityCGrid !< Input:
 
     real(kind=RKIND) :: &
          stressDivergenceUEdge, &
@@ -2212,14 +2214,12 @@ end subroutine variational_denominator_c_grid
 
 !!!!!!!!!! TODO: I REMOVED THE STUFF ON OpenMP
 
-    call MPAS_pool_get_array(boundary, "interiorEdge", interiorEdge)
-
-    stressDivergenceUCGrid(:) = 0.0_RKIND
-    stressDivergenceVCGrid(:) = 0.0_RKIND
-
     do iEdge = 1, nEdges
 
-       if (interiorEdge(iEdge)==1) then
+       if (solveVelocityCGrid(iEdge)==1) then
+
+          stressDivergenceUCGrid(iEdge) = 0.0_RKIND
+          stressDivergenceVCGrid(iEdge) = 0.0_RKIND
 
           stressDivergenceUEdge = 0.0_RKIND
           stressDivergenceVEdge = 0.0_RKIND
@@ -2303,7 +2303,7 @@ end subroutine variational_denominator_c_grid
           stressDivergenceUCGrid(iEdge) = stressDivergenceUCGrid(iEdge) + stressDivergenceUEdge / variationalDenominatorCGrid(iEdge)
           stressDivergenceVCGrid(iEdge) = stressDivergenceVCGrid(iEdge) + stressDivergenceVEdge / variationalDenominatorCGrid(iEdge)
 
-       endif ! interiorEdge
+       endif ! solveVelocityCGrid
 
     enddo ! iEdge
 
