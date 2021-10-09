@@ -1307,25 +1307,21 @@ end subroutine variational_denominator_c_grid
 
                 iEdge = edgesOnVertex(iBasisEdge,iVertex)
 
-                if(iEdge .le. nEdges) then
 
-                   strain11Tmp = strain11Tmp + uVelocityCGrid(iEdge) * basisGradientUTri(iBasisEdge,iGradientEdge,iVertex)
-                   strain22Tmp = strain22Tmp + vVelocityCGrid(iEdge) * basisGradientVTri(iBasisEdge,iGradientEdge,iVertex)
-                   strain12Tmp = strain12Tmp + 0.5_RKIND * (&
-                                 uVelocityCGrid(iEdge) * basisGradientVTri(iBasisEdge,iGradientEdge,iVertex) + &
-                                 vVelocityCGrid(iEdge) * basisGradientUTri(iBasisEdge,iGradientEdge,iVertex))
-                end if
+                strain11Tmp = strain11Tmp + uVelocityCGrid(iEdge) * basisGradientUTri(iBasisEdge,iGradientEdge,iVertex)
+                strain22Tmp = strain22Tmp + vVelocityCGrid(iEdge) * basisGradientVTri(iBasisEdge,iGradientEdge,iVertex)
+                strain12Tmp = strain12Tmp + 0.5_RKIND * (&
+                              uVelocityCGrid(iEdge) * basisGradientVTri(iBasisEdge,iGradientEdge,iVertex) + &
+                              vVelocityCGrid(iEdge) * basisGradientUTri(iBasisEdge,iGradientEdge,iVertex))
 
              end do ! iEdgeOnVertex
 
              ! metric terms
              jEdge = edgesOnVertex(iGradientEdge,iVertex)
 
-             if(jEdge .le. nEdges) then
-                strain11Tri(iGradientEdge,iVertex) = strain11Tmp - vVelocityCGrid(jEdge) * tanLatEdgeRotatedOverRadius(jEdge)
-                strain12Tri(iGradientEdge,iVertex) = strain12Tmp + uVelocityCGrid(jEdge) * tanLatEdgeRotatedOverRadius(jEdge) * 0.5_RKIND
-                strain22Tri(iGradientEdge,iVertex) = strain22Tmp
-             end if
+             strain11Tri(iGradientEdge,iVertex) = strain11Tmp - vVelocityCGrid(jEdge) * tanLatEdgeRotatedOverRadius(jEdge)
+             strain12Tri(iGradientEdge,iVertex) = strain12Tmp + uVelocityCGrid(jEdge) * tanLatEdgeRotatedOverRadius(jEdge) * 0.5_RKIND
+             strain22Tri(iGradientEdge,iVertex) = strain22Tmp
 
           end do ! jEdgeOnVertex
 
@@ -1753,17 +1749,13 @@ end subroutine variational_denominator_c_grid
     do iCell = 1, nCells
        icePressureCellCGrid(iCell) = icePressure(iCell)
     end do
-    icePressureTriCGrid(:) = 0.0_RKIND
-     
-    do iVertex = 1, nVertices
- 
-       do iCellsOnVertex = 1, vertexDegree
 
+    icePressureTriCGrid(:) = 0.0_RKIND
+    do iVertex = 1, nVertices
+       do iCellsOnVertex = 1, vertexDegree
           iCell = cellsOnVertex(iCellsOnVertex,iVertex)
           icePressureTriCGrid(iVertex) = icePressureTriCGrid(iVertex) + kiteAreasOnVertex(iCellsOnVertex, iVertex) * icePressure(iCell) / areaTriangle(iVertex)
-
        end do
-
     end do
 
     ! init variables
@@ -1774,9 +1766,9 @@ end subroutine variational_denominator_c_grid
 
        denominator = 1.0_RKIND + (0.5_RKIND * dtElastic) / dampingTimescale
 
-       if (solveStress(iCell) == 1) then
+       do iCell = 1, nCells
 
-          do iCell = 1, nCells
+          if (solveStress(iCell) == 1) then
 
              do iEdgesOnCell = 1, nEdgesOnCell(iCell)
 
@@ -1794,9 +1786,9 @@ end subroutine variational_denominator_c_grid
 
               end do ! iEdgesOnCell
  
-          end do ! iCell
+          end if 
      
-       end if
+       end do ! iCell
 
        do iVertex = 1, nVertices
 
