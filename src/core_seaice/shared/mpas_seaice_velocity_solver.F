@@ -2993,8 +2993,6 @@ contains
                   strain11varTri, &
                   strain22varTri, &
                   strain12varTri, &
-                  uVelocity, &
-                  vVelocity, &
                   uVelocityCGrid, &
                   vVelocityCGrid, &
                   basisGradientU, &
@@ -3587,8 +3585,6 @@ contains
                 vertexOnEdge1 = verticesOnEdge(1,iEdge)
                 vertexOnEdge2 = verticesOnEdge(2,iEdge)
 
-                uVelocityCGrid(iEdge) = 0.5_RKIND * (uVelocity(vertexOnEdge1) + uVelocity(vertexOnEdge2))
-                vVelocityCGrid(iEdge) = 0.5_RKIND * (vVelocity(vertexOnEdge1) + vVelocity(vertexOnEdge2))
                 totalMassEdge(iEdge) = 0.5_RKIND * (totalMassVertex(vertexOnEdge1) + totalMassVertex(vertexOnEdge2))
                 totalMassVertexfEdge(iEdge) = 0.5_RKIND * (totalMassVertexfVertex(vertexOnEdge1) + totalMassVertexfVertex(vertexOnEdge2))
                 airStressEdgeU(iEdge) = 0.5_RKIND * (airStressVertexU(vertexOnEdge1) + airStressVertexU(vertexOnEdge2))

@@ -1170,8 +1170,6 @@ end subroutine variational_denominator_c_grid
        strain11Tri, &
        strain22Tri, &
        strain12Tri, &
-       uVelocity, &
-       vVelocity, &
        uVelocityCGrid, &
        vVelocityCGrid, &
        basisGradientU, &
@@ -1205,8 +1203,6 @@ end subroutine variational_denominator_c_grid
          strain12Tri    !< Output:
 
     real(kind=RKIND), dimension(:), intent(in) :: &
-         uVelocity, & !< Input:
-         vVelocity, & !< Input:
          tanLatEdgeRotatedOverRadius !< Input:
 
     real(kind=RKIND), dimension(:), intent(inout) :: &
@@ -1238,21 +1234,6 @@ end subroutine variational_denominator_c_grid
          strain11Tmp, &
          strain22Tmp, &
          strain12Tmp
-
-    ! NOTE: INTERPOLATION OF VELOCITY FROM VERTEX LOCATIONS TO EDGE LOCATIONS
-    do iEdge = 1, nEdges
-
-       if (solveVelocityCGrid(iEdge) == 1) then 
-
-          vertexOnEdge1 = verticesOnEdge(1,iEdge)
-          vertexOnEdge2 = verticesOnEdge(2,iEdge)
-
-          uVelocityCGrid(iEdge) = 0.5_RKIND * (uVelocity(vertexOnEdge1) + uVelocity(vertexOnEdge2))
-          vVelocityCGrid(iEdge) = 0.5_RKIND * (vVelocity(vertexOnEdge1) + vVelocity(vertexOnEdge2))
-
-        end if
-
-    end do
 
     do iCell = 1, nCells
    
