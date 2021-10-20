@@ -1891,6 +1891,7 @@
 				immutable="true">
 			<stream name="mesh"/>
 			<var name="fVertex"/>
+			<var name="fEdge"/>
 		</stream>
 
 		<stream name="regions"
@@ -2356,6 +2357,9 @@
 		<var name="fVertex" type="real" dimensions="nVertices" units="s^{-1}"
 			description="Coriolis parameter at vertices."
 		/>
+		<var name="fEdge" type="real" dimensions="nEdges" units="s^{-1}"
+			description="Coriolis parameter at edges."
+		/>
 		<var name="coeffs_reconstruct" type="real" dimensions="R3 maxEdges nCells" units="unitless"
 			description="Coefficients to reconstruct velocity vectors at cells centers."
 		/>
@@ -2696,8 +2700,10 @@
 		<var name="snowVolumeCategoryInitial"		type="real"	dimensions="nCategories nCells Time"	name_in_code="snowVolumeCategoryInitial"/>
 		<var name="openWaterArea"			type="real"	dimensions="nCells Time"		name_in_code="openWaterArea"/>
 		<var name="iceAreaVertex"			type="real"	dimensions="nVertices Time"		name_in_code="iceAreaVertex"/>
+		<var name="iceAreaEdge"			        type="real"	dimensions="nEdges Time"		name_in_code="iceAreaEdge"/>
 		<var name="totalMassCell"			type="real"	dimensions="nCells Time"		name_in_code="totalMassCell"/>
 		<var name="totalMassVertex"			type="real"	dimensions="nVertices Time"		name_in_code="totalMassVertex"/>
+		<var name="totalMassEdge"			type="real"	dimensions="nEdges Time"		name_in_code="totalMassEdge"/>
 	</var_struct>
 	<var_struct name="tracer_tendencies" time_levs="1">
 		<var name="iceAreaCategoryTend"		type="real"	dimensions="ONE nCategories nCells"		name_in_code="iceAreaCategoryTend"/>
@@ -3672,6 +3678,7 @@
 		<var name="oceanHeatFluxConvergence"		type="real"	dimensions="nCells Time"		name_in_code="oceanHeatFluxConvergence"/>
 		<var name="landIceMask"			type="integer"	dimensions="nCells Time"		name_in_code="landIceMask"/>
 		<var name="landIceMaskVertex"			type="integer"	dimensions="nVertices Time"		name_in_code="landIceMaskVertex"/>
+		<var name="landIceMaskEdge"			type="integer"	dimensions="nEdges Time"		name_in_code="landIceMaskEdge"/>
 	</var_struct>
 
 	<!-- boundary variables -->
@@ -3694,6 +3701,8 @@
 		<var name="vVelocityCell"			type="real"	dimensions="nCells Time"		name_in_code="vVelocityCell"/>
 		<var name="uVelocityInitial"			type="real"	dimensions="nVertices Time"		name_in_code="uVelocityInitial"/>
 		<var name="vVelocityInitial"			type="real"	dimensions="nVertices Time"		name_in_code="vVelocityInitial"/>
+		<var name="uVelocityInitialCGrid"		type="real"	dimensions="nEdges Time"		name_in_code="uVelocityInitialCGrid"/>
+		<var name="vVelocityInitialCGrid"		type="real"	dimensions="nEdges Time"		name_in_code="vVelocityInitialCGrid"/>
 		<var name="edgeVelocity"			type="real"	dimensions="nEdges Time"		name_in_code="edgeVelocity"/>
 		<var name="normalVectorEdge"			type="real"	dimensions="TWO maxEdges nCells Time"	name_in_code="normalVectorEdge"/>
 		<var name="solveStress"	         		type="integer"	dimensions="nCells Time"		name_in_code="solveStress"/>
@@ -3701,6 +3710,7 @@
 		<var name="solveVelocity"			type="integer"	dimensions="nVertices Time"		name_in_code="solveVelocity"/>
 		<var name="solveVelocityPrevious"		type="integer"	dimensions="nVertices Time"		name_in_code="solveVelocityPrevious"/>
 		<var name="solveVelocityCGrid"			type="integer"	dimensions="nEdges Time"		name_in_code="solveVelocityCGrid"/>
+		<var name="solveVelocityPreviousCGrid"		type="integer"	dimensions="nEdges Time"		name_in_code="solveVelocityPreviousCGrid"/>
 		<var name="icePressure"		        	type="real"	dimensions="nCells Time"		name_in_code="icePressure"/>
 		<var name="stressDivergenceU"			type="real"	dimensions="nVertices Time"		name_in_code="stressDivergenceU"/>
 		<var name="stressDivergenceV"			type="real"	dimensions="nVertices Time"		name_in_code="stressDivergenceV"/>
@@ -3710,18 +3720,30 @@
 		<var name="airStressCellV"			type="real"	dimensions="nCells Time"		name_in_code="airStressCellV"/>
 		<var name="airStressVertexU"			type="real"	dimensions="nVertices Time"		name_in_code="airStressVertexU"/>
 		<var name="airStressVertexV"			type="real"	dimensions="nVertices Time"		name_in_code="airStressVertexV"/>
+		<var name="airStressEdgeU"			type="real"	dimensions="nEdges Time"		name_in_code="airStressEdgeU"/>
+		<var name="airStressEdgeV"			type="real"	dimensions="nEdges Time"		name_in_code="airStressEdgeV"/>
 		<var name="uOceanVelocityVertex"		type="real"	dimensions="nVertices Time"		name_in_code="uOceanVelocityVertex"/>
 		<var name="vOceanVelocityVertex"		type="real"	dimensions="nVertices Time"		name_in_code="vOceanVelocityVertex"/>
+		<var name="uOceanVelocityEdge"   		type="real"	dimensions="nEdges Time"		name_in_code="uOceanVelocityEdge"/>
+		<var name="vOceanVelocityEdge"	        	type="real"	dimensions="nEdges Time"		name_in_code="vOceanVelocityEdge"/>
 		<var name="oceanStressU"			type="real"	dimensions="nVertices Time"		name_in_code="oceanStressU"/>
 		<var name="oceanStressV"			type="real"	dimensions="nVertices Time"		name_in_code="oceanStressV"/>
+		<var name="oceanStressEdgeU"			type="real"	dimensions="nEdges Time"		name_in_code="oceanStressEdgeU"/>
+		<var name="oceanStressEdgeV"			type="real"	dimensions="nEdges Time"		name_in_code="oceanStressEdgeV"/>
 		<var name="oceanStressCoeff"			type="real"	dimensions="nVertices Time"		name_in_code="oceanStressCoeff"/>
+		<var name="oceanStressCoeffEdge"		type="real"	dimensions="nEdges Time"		name_in_code="oceanStressCoeffEdge"/>
 		<var name="oceanStressCellU"			type="real"	dimensions="nCells Time"		name_in_code="oceanStressCellU"/>
 		<var name="oceanStressCellV"			type="real"	dimensions="nCells Time"		name_in_code="oceanStressCellV"/>
 		<var name="seaSurfaceTiltVertexU"		type="real"	dimensions="nVertices Time"		name_in_code="seaSurfaceTiltVertexU"/>
 		<var name="seaSurfaceTiltVertexV"		type="real"	dimensions="nVertices Time"		name_in_code="seaSurfaceTiltVertexV"/>
-		<var name="surfaceTiltForceU"			type="real"	dimensions="nVertices Time"		name_in_code="surfaceTiltForceU"/>
+		<var name="seaSurfaceTiltEdgeU"		        type="real"	dimensions="nEdges Time"		name_in_code="seaSurfaceTiltEdgeU"/>
+		<var name="seaSurfaceTiltEdgeV"		        type="real"	dimensions="nEdges Time"		name_in_code="seaSurfaceTiltEdgeV"/>
+		<var name="surfaceTiltForceU"		 	type="real"	dimensions="nVertices Time"		name_in_code="surfaceTiltForceU"/>
 		<var name="surfaceTiltForceV"			type="real"	dimensions="nVertices Time"		name_in_code="surfaceTiltForceV"/>
+		<var name="surfaceTiltForceEdgeU"		type="real"	dimensions="nEdges Time"		name_in_code="surfaceTiltForceEdgeU"/>
+		<var name="surfaceTiltForceEdgeV"		type="real"	dimensions="nEdges Time"		name_in_code="surfaceTiltForceEdgeV"/>
 		<var name="totalMassVertexfVertex"		type="real"	dimensions="nVertices Time"		name_in_code="totalMassVertexfVertex"/>
+		<var name="totalMassEdgefEdge"		        type="real"	dimensions="nEdges Time"		name_in_code="totalMassEdgefEdge"/>
 		<var name="divergence"				type="real"	dimensions="nCells Time"		name_in_code="divergence"/>
 		<var name="shear"				type="real"	dimensions="nCells Time"		name_in_code="shear"/>
 		<var name="dynamicallyLockedCellsMask"		type="integer"	dimensions="nCells Time"		name_in_code="dynamicallyLockedCellsMask"/>
