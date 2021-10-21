@@ -4,12 +4,17 @@ from netCDF4 import Dataset
 
 def set_difference_fields():
 
+    #files = {"./output_hex_wachspress_0082x0094_120/output.2000.nc":
+    #         ["./output_hex_pwl_0082x0094_120/output.2000.nc",
+    #          "./output_hex_weak_0082x0094_120/output.2000.nc"],
+    #         "./output_quad_wachspress_0080x0080_120/output.2000.nc":
+    #         ["./output_quad_pwl_0080x0080_120/output.2000.nc",
+    #          "./output_quad_weak_0080x0080_120/output.2000.nc"]}
+
     files = {"./output_hex_wachspress_0082x0094_120/output.2000.nc":
-             ["./output_hex_pwl_0082x0094_120/output.2000.nc",
-              "./output_hex_weak_0082x0094_120/output.2000.nc"],
+             ["./output_hex_pwl_0082x0094_120/output.2000.nc"],
              "./output_quad_wachspress_0080x0080_120/output.2000.nc":
-             ["./output_quad_pwl_0080x0080_120/output.2000.nc",
-              "./output_quad_weak_0080x0080_120/output.2000.nc"]}
+             ["./output_quad_pwl_0080x0080_120/output.2000.nc"]}
 
     #files = {"./output_hex_wachspress_0082x0094_120/output.2000.nc":
     #         ["./output/output.2000.nc"]}

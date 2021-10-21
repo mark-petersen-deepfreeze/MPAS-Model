@@ -22,6 +22,7 @@
         <var name="iceAreaCategory"/>
         <var name="iceVolumeCategory"/>
 	<var name="fVertex"/>
+	<var name="fEdge"/>
 </stream>
 
 <immutable_stream name="restart"
@@ -44,12 +45,17 @@
 	<var name="iceVolumeCell"/>
 	<var name="uVelocity"/>
 	<var name="vVelocity"/>
+	<var name="uVelocityCGrid"/>
+	<var name="vVelocityCGrid"/>
 	<var name="stressDivergenceU"/>
 	<var name="stressDivergenceV"/>
+	<var name="stressDivergenceUCGrid"/>
+	<var name="stressDivergenceVCGrid"/>
 	<var name="airStressVertexU"/>
 	<var name="airStressVertexV"/>
 	<var name="icePressure"/>
 	<var name="fVertex"/>
+	<var name="fEdge"/>
 	<var name="interiorVertex"/>
 	<var name="interiorCell"/>
 	<var name="principalStress1Var"/>
@@ -68,6 +74,26 @@
 	<var name="strain11weak"/>
 	<var name="strain22weak"/>
 	<var name="strain12weak"/>
+	<var name="interiorVertex"/>
+	<var name="interiorEdge"/>
+	<var name="solveVelocity"/>
+	<var name="solveVelocityPrevious"/>
+	<var name="airStressVertexU"/>
+	<var name="airStressVertexV"/>
+	<var name="surfaceTiltForceU"/>
+	<var name="surfaceTiltForceV"/>
+	<var name="totalMassVertexfVertex"/>
+	<var name="oceanStressU"/>
+	<var name="oceanStressV"/>
+	<var name="oceanStressCoeff"/>
+	<var name="airStressEdgeU"/>
+	<var name="airStressEdgeV"/>
+	<var name="surfaceTiltForceEdgeU"/>
+	<var name="surfaceTiltForceEdgeV"/>
+	<var name="totalMassEdgefEdge"/>
+	<var name="oceanStressEdgeU"/>
+	<var name="oceanStressEdgeV"/>
+	<var name="oceanStressCoeffEdge"/>
 </stream>
 
 <immutable_stream name="LYqSixHourlyForcing"

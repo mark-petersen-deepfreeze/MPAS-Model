@@ -14,7 +14,7 @@ def run_square_quadhex_testcase():
 
     run_model()
 
-    set_difference_fields()
+    #set_difference_fields()
 
     plot_testcase()
 

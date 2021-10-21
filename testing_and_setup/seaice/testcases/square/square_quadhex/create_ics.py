@@ -50,6 +50,7 @@ def create_ic(gridfile, icfile):
 
     nCells = len(grid.dimensions["nCells"])
     nVertices = len(grid.dimensions["nVertices"])
+    nEdges = len(grid.dimensions["nEdges"])
 
     # calculate output variables
     uAirVelocity = np.empty(nCells)
@@ -62,6 +63,7 @@ def create_ic(gridfile, icfile):
     iceVolume        = np.empty((nCells,1,1))
 
     fVertex = np.empty((nVertices,1,1))
+    fEdge = np.empty((nEdges,1,1))
 
     xmin = np.amin(xVertex)
     xmax = np.amax(xVertex)
@@ -89,6 +91,8 @@ def create_ic(gridfile, icfile):
 
     for iVertex in range(0,nVertices):
         fVertex[iVertex] = 1.46e-4
+    for iEdge in range(0,nEdges):
+        fEdge[iEdge] = 1.46e-4
 
     # create output file
     ic = Dataset(icfile, "w", format="NETCDF3_64BIT")
@@ -96,6 +100,7 @@ def create_ic(gridfile, icfile):
 
     ic.createDimension("nCells", nCells)
     ic.createDimension("nVertices", nVertices)
+    ic.createDimension("nEdges", nEdges)
     ic.createDimension("nCategories", 1)
     ic.createDimension("ONE", 1)
     ic.createDimension("Time", None)
@@ -118,6 +123,8 @@ def create_ic(gridfile, icfile):
 
     fVertexVar = ic.createVariable("fVertex", 'd', ('nVertices'))
     fVertexVar[:] = fVertex[:]
+    fEdgeVar = ic.createVariable("fEdge", 'd', ('nEdges'))
+    fEdgeVar[:] = fEdge[:]
 
     ic.close()
     grid.close()
@@ -128,14 +135,17 @@ def create_ics():
 
     gridTypes = ["hex","quad"]
 
-    grids = {"hex": ["0082x0094",
-                     "0164x0188",
-                     "0328x0376",
-                     "0656x0752"],
-             "quad":["0080x0080",
-                     "0160x0160",
-                     "0320x0320",
-                     "0640x0640"]}
+    #grids = {"hex": ["0082x0094",
+    #                 "0164x0188",
+    #                 "0328x0376",
+    #                 "0656x0752"],
+    #         "quad":["0080x0080",
+    #                 "0160x0160",
+    #                 "0320x0320",
+    #                 "0640x0640"]}
+
+    grids = {"hex": ["0082x0094"],
+             "quad":["0080x0080"]}
 
     for gridType in gridTypes:
         for grid in grids[gridType]:
