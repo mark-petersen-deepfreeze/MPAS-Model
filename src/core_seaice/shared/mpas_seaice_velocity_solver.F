@@ -4043,7 +4043,11 @@ contains
 
           end do
 
-          ! INTERPOLATION OF VELOCITY FROM VERTICES BACK TO EDGES
+          ! -BEGIN: to be removed
+          ! INTERPOLATION OF VELOCITY FROM VERTICES BACK TO EDGES 
+
+          call MPAS_dmpar_field_halo_exch(domain, 'uVelocityCGrid')
+          call MPAS_dmpar_field_halo_exch(domain, 'vVelocityCGrid')
 
           do iVertex = 1, nVerticesSolve
 
@@ -4071,6 +4075,8 @@ contains
              end if
 
           end do 
+
+          ! -END: to be removed 
 
        end if
 
