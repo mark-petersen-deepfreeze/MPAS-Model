@@ -278,7 +278,6 @@ def L2_norm_integral_triangle(numerical, nVertices, cellsOnVertex, xCell, yCell,
 
                 norm  = norm  + weights[iWeight] * areaTriangle[iVertex] * math.pow(numerical[iVertex] - analytical,2)
                 denom = denom + weights[iWeight] * areaTriangle[iVertex] * math.pow(analytical,2)
-                normCheck = normCheck + weights[iWeight] * areaTriangle[iVertex]
 
     norm = math.sqrt(norm / denom)
 

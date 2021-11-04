@@ -53,6 +53,12 @@ def create_ic(gridfile, icfile):
 
     # load grid file
     grid = Dataset(gridfile, "r")
+    with open('./namelist.seaice.stress_divergence') as namelistFile:
+            namelistTxt = namelistFile.read().split('\n')
+            for line in namelistTxt:
+                if 'config_use_c_grid = ' in line:
+                    config_use_c_grid = line.split()[-1]
+                    break
 
     nCells = len(grid.dimensions["nCells"])
     nVertices = len(grid.dimensions["nVertices"])
@@ -155,29 +161,31 @@ def create_ic(gridfile, icfile):
     stress22varTri = np.zeros((nVertices, vertexDegree))
     stress12varTri = np.zeros((nVertices, vertexDegree))
 
-# if C-grid
-    for iCell in range(0, nCells):
-        for iEdgeOnCell in range(0,nEdgesOnCell[iCell]):
-            iEdge = edgesOnCell[iCell,iEdgeOnCell]
-            stress11var[iCell,iEdgeOnCell] = strain11Edge[iEdge]
-            stress22var[iCell,iEdgeOnCell] = strain22Edge[iEdge]
-            stress12var[iCell,iEdgeOnCell] = strain12Edge[iEdge]
+    if (config_use_c_grid == 'true') :
+       # if C-grid
+       for iCell in range(0, nCells):
+           for iEdgeOnCell in range(0,nEdgesOnCell[iCell]):
+               iEdge = edgesOnCell[iCell,iEdgeOnCell]
+               stress11var[iCell,iEdgeOnCell] = strain11Edge[iEdge]
+               stress22var[iCell,iEdgeOnCell] = strain22Edge[iEdge]
+               stress12var[iCell,iEdgeOnCell] = strain12Edge[iEdge]
 
-    for iVertex in range(0, nVertices):
-        for iDegree in range(0,vertexDegree):
-            iEdge = edgesOnVertex[iVertex,iDegree]
+       for iVertex in range(0, nVertices):
+           for iDegree in range(0,vertexDegree):
+              iEdge = edgesOnVertex[iVertex,iDegree]
 
-            stress11varTri[iVertex,iDegree] = strain11Edge[iEdge]
-            stress22varTri[iVertex,iDegree] = strain22Edge[iEdge]
-            stress12varTri[iVertex,iDegree] = strain12Edge[iEdge]
+              stress11varTri[iVertex,iDegree] = strain11Edge[iEdge]
+              stress22varTri[iVertex,iDegree] = strain22Edge[iEdge]
+              stress12varTri[iVertex,iDegree] = strain12Edge[iEdge]
 
-# if B-grid
-#    for iCell in range(0, nCells):
-#        for iVertexOnCell in range(0,nEdgesOnCell[iCell]):
-#            iVertex = verticesOnCell[iCell,iVertexOnCell]
-#            stress11var[iCell,iVertexOnCell] = strain11Vertex[iVertex]
-#            stress22var[iCell,iVertexOnCell] = strain22Vertex[iVertex]
-#            stress12var[iCell,iVertexOnCell] = strain12Vertex[iVertex]
+    else :
+       # if B-grid
+       for iCell in range(0, nCells):
+          for iVertexOnCell in range(0,nEdgesOnCell[iCell]):
+             iVertex = verticesOnCell[iCell,iVertexOnCell]
+             stress11var[iCell,iVertexOnCell] = strain11Vertex[iVertex]
+             stress22var[iCell,iVertexOnCell] = strain22Vertex[iVertex]
+             stress12var[iCell,iVertexOnCell] = strain12Vertex[iVertex]
 
     # create output file
     fileOut = Dataset(icfile, "w", format="NETCDF3_CLASSIC")
@@ -254,19 +262,20 @@ def create_ic(gridfile, icfile):
     var = fileOut.createVariable("stress12varTri","d",dimensions=["nVertices","vertexDegree"])
     var[:] = stress12varTri[:]
 
-# if B-grid
-    var = fileOut.createVariable("stressDivergenceUAnalytical","d",dimensions=["nVertices"])
-    var[:] = stressDivergenceU[:]
+    if (config_use_c_grid == 'true') :
+       #if C-grid
+       var = fileOut.createVariable("stressDivergenceUAnalytical","d",dimensions=["nEdges"])
+       var[:] = stressDivergenceUCGrid[:]
 
-    var = fileOut.createVariable("stressDivergenceVAnalytical","d",dimensions=["nVertices"])
-    var[:] = stressDivergenceV[:]
+       var = fileOut.createVariable("stressDivergenceVAnalytical","d",dimensions=["nEdges"])
+       var[:] = stressDivergenceVCGrid[:]
 
-#if C-grid
-#    var = fileOut.createVariable("stressDivergenceUAnalytical","d",dimensions=["nEdges"])
-#    var[:] = stressDivergenceUCGrid[:]
-#
-#    var = fileOut.createVariable("stressDivergenceVAnalytical","d",dimensions=["nEdges"])
-#    var[:] = stressDivergenceVCGrid[:]
+    else :
+       var = fileOut.createVariable("stressDivergenceUAnalytical","d",dimensions=["nVertices"])
+       var[:] = stressDivergenceU[:]
+ 
+       var = fileOut.createVariable("stressDivergenceVAnalytical","d",dimensions=["nVertices"])
+       var[:] = stressDivergenceV[:]
 
     fileOut.close()
 
