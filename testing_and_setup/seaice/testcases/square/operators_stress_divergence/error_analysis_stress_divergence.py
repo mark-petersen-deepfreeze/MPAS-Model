@@ -22,11 +22,11 @@ def error_analysis_stress_divergence():
     fileout = open("error_report_stress_divergence.txt","w")
 
 
-    #gridTypes = ["hex","quad"]
-    #grids = {"hex" :"0082x0094",
-    #         "quad":"0080x0080"}
-    gridTypes = ["hex"]
-    grids = {"hex" :"0082x0094"}
+    gridTypes = ["hex","quad"]
+    grids = {"hex" :"0082x0094",
+             "quad":"0080x0080"}
+    #gridTypes = ["hex"]
+    #grids = {"hex" :"0082x0094"}
     for gridType in gridTypes:
 
         print("GridType: ", gridType)
@@ -122,11 +122,14 @@ def error_analysis_stress_divergence():
                         dx = xVertex[iVertex] - xVertex[iVertexTest]
                         dy = yVertex[iVertex] - yVertex[iVertexTest]
 
-                        fTerm = coeff[iTerm] * pow(dx,dxPow[iTerm]) * pow(dy,dyPow[iTerm])
+                        #fTerm = coeff[iTerm] * pow(dx,dxPow[iTerm]) * pow(dy,dyPow[iTerm])
+                        fTerm = pow(dx,dxPow[iTerm]) * pow(dy,dyPow[iTerm])
 
-                        dfdx[iTerm] -= (fTerm * basisIntegralsU[iCell, iStressVertex, iVelocityVertex]) / areaTriangle[iVertexTest]
-                        dfdy[iTerm] -= (fTerm * basisIntegralsV[iCell, iStressVertex, iVelocityVertex]) / areaTriangle[iVertexTest]
+                        dfdx[iTerm] -= (fTerm * basisIntegralsU[iCell, iVelocityVertex, iStressVertex]) #/ areaTriangle[iVertexTest]
+                        dfdy[iTerm] -= (fTerm * basisIntegralsV[iCell, iVelocityVertex, iStressVertex]) #/ areaTriangle[iVertexTest]
 
+            dfdx[1] = (dfdx[1] -  areaTriangle[iVertexTest])
+            dfdy[2] = (dfdy[2] -  areaTriangle[iVertexTest])
             dfdxAvg = np.mean(dfdx,axis=0)
             dfdyAvg = np.mean(dfdy,axis=0)
             print("          # Term       df/dx                  df/dy")

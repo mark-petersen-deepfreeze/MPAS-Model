@@ -88,15 +88,15 @@ def plot_testcase_diff(testDir, baseDir, strainType, filenameOut):
     filein.close()
 
     # differences
-    uVelocity = uVelocityTest[:]# - uVelocityBase[:]
-    vVelocity = vVelocityTest[:]# - vVelocityBase[:]
-    #uVelocity = uVelocityTest[:] - uVelocityBase[:]
-    #vVelocity = vVelocityTest[:] - vVelocityBase[:]
+    #uVelocity = uVelocityTest[:]# - uVelocityBase[:]
+    #vVelocity = vVelocityTest[:]# - vVelocityBase[:]
+    uVelocity = uVelocityTest[:] - uVelocityBase[:]
+    vVelocity = vVelocityTest[:] - vVelocityBase[:]
 
-    stressDivergenceU = stressDivergenceUTest[:]# - stressDivergenceUBase[:]
-    stressDivergenceV = stressDivergenceVTest[:]# - stressDivergenceVBase[:]
-    #stressDivergenceU = stressDivergenceUTest[:] - stressDivergenceUBase[:]
-    #stressDivergenceV = stressDivergenceVTest[:] - stressDivergenceVBase[:]
+    #stressDivergenceU = stressDivergenceUTest[:]# - stressDivergenceUBase[:]
+    #stressDivergenceV = stressDivergenceVTest[:]# - stressDivergenceVBase[:]
+    stressDivergenceU = stressDivergenceUTest[:] - stressDivergenceUBase[:]
+    stressDivergenceV = stressDivergenceVTest[:] - stressDivergenceVBase[:]
 
     if (strainType == "varvar"):
         strain11var = strain11varTest[:] - strain11varBase[:]

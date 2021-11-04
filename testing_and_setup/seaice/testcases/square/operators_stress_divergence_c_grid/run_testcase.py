@@ -10,6 +10,6 @@ create_ics()
 
 run_model()
 
-#stress_divergence_scaling()
+stress_divergence_scaling()
 
 error_analysis_stress_divergence()

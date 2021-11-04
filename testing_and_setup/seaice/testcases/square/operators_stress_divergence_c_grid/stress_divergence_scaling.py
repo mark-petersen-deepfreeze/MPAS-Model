@@ -267,24 +267,18 @@ def L2_norm_integral_triangle(numerical, nVertices, cellsOnVertex, xCell, yCell,
                 get_real_coords_from_barycentric_coords_coefficients(xCell[iCell1], yCell[iCell1], \
                                                                      xCell[iCell2], yCell[iCell2], \
                                                                      xCell[iCell3], yCell[iCell3])
-
-            divuIntegral = 0.0
-            divvIntegral = 0.0
             for iWeight in range(0, nIntegrationPoints):
 
                 divu, divv = get_analytical_stress_divergence_triangle(u[iWeight], v[iWeight], T11, T12, T21, T22, Cx, Cy, xMin, yMin)
 
-                divuIntegral += weights[iWeight] * divu
-                divvIntegral += weights[iWeight] * divv
+                if (divType == "divu"):
+                   analytical = divu
+                else:
+                   analytical = divv
 
-            if (divType == "divu"):
-                analytical = divuIntegral
-            else:
-                analytical = divvIntegral
-
-            norm  = norm  + weights[iWeight] * areaTriangle[iVertex] * math.pow(numerical[iVertex] - analytical,2)
-
-            denom = denom + weights[iWeight] * areaTriangle[iVertex] * math.pow(analytical,2)
+                norm  = norm  + weights[iWeight] * areaTriangle[iVertex] * math.pow(numerical[iVertex] - analytical,2)
+                denom = denom + weights[iWeight] * areaTriangle[iVertex] * math.pow(analytical,2)
+                normCheck = normCheck + weights[iWeight] * areaTriangle[iVertex]
 
     norm = math.sqrt(norm / denom)
 
@@ -552,7 +546,7 @@ def stress_divergence_scaling():
 
     # options
     #operatorMethods = ["wachspress","pwl","weak"]
-    operatorMethods = ["wachspress"]
+    operatorMethods = ["wachspress", "pwl"]
 
     #gridTypes = ["hex","quad"]
     gridTypes = ["hex"]
@@ -565,8 +559,8 @@ def stress_divergence_scaling():
     #                 "0160x0160",
     #                 "0320x0320",
     #                 "0640x0640"]}
-    ##grids = {"hex" :["0656x0752"],
-    ##         "quad":["0640x0640"]}
+    #grids = {"hex" :["0656x0752"],
+    #         "quad":["0640x0640"]}
 
     #grids = {"hex" :["0082x0094",
     #                 "0164x0188",
@@ -578,8 +572,10 @@ def stress_divergence_scaling():
     #                 "0640x0640"]}
     #grids = {"hex" :["0082x0094"],
     #         "quad":["0080x0080"]}
-    grids = {"hex" :["0082x0094"]}
-
+    #grids = {"hex" :["0082x0094"]}
+    grids = {"hex" :["0082x0094",
+                     "0164x0188",
+                     "0328x0376"]}
 
     stressDivergences = ["U","V"]
     #stressDivergences = ["U"]
@@ -666,7 +662,7 @@ def stress_divergence_scaling():
 
         axes[j].legend(frameon=False, loc=2, fontsize=8, handlelength=2)
 
-        axes[j].set_ylim((3.8e-5,5e-2))
+        axes[j].set_ylim((3.8e-5,5e-1))
         axes[j].set_xlabel("Grid resolution")
         axes[j].set_ylabel(r"$L_2$ error norm")
         axes[j].set_title(stressDivergenceLabels[stressDivergence])

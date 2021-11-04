@@ -10,6 +10,7 @@ except ImportError:
 def run_model():
 
     MPAS_SEAICE_TESTCASES_RUN_COMMAND = os.environ.get('MPAS_SEAICE_TESTCASES_RUN_COMMAND')
+    mpas_tools_dir = os.environ['MPAS_TOOLS_DIR']
     if (MPAS_SEAICE_TESTCASES_RUN_COMMAND is None):
         MPAS_SEAICE_TESTCASES_RUN_COMMAND = ""
 
@@ -27,8 +28,8 @@ def run_model():
     #                 "0160x0160",
     #                 "0320x0320",
     #                 "0640x0640"]}
-    grids = {"hex" :["0082x0094"],
-             "quad":["0080x0080"]}
+    #grids = {"hex" :["0082x0094"],
+    #         "quad":["0080x0080"]}
 
     #grids = {"hex" :["0082x0094",
     #                 "0164x0188",
@@ -40,6 +41,10 @@ def run_model():
     #                 "0640x0640"]}
     #grids = {"hex" :["0082x0094",
     #                 "0164x0188"]}
+    grids = {"hex" :["0082x0094",
+                     "0164x0188",
+                     "0328x0376"],
+             "quad":["0080x0080"]}
 
     for gridType in gridTypes:
 
@@ -77,6 +82,10 @@ def run_model():
                 os.system("rm -rf namelist.seaice streams.seaice output_%s_%s_%s" %(gridType, operatorMethod, grid))
                 os.system("ln -s namelist.seaice.%s namelist.seaice" %(operatorMethod))
                 os.system("ln -s streams.seaice.stress_divergence streams.seaice")
+
+                os.system("%s/mesh_tools/mesh_conversion_tools/MpasMeshConverter.x grid_%s_%s.nc" %(mpas_tools_dir, gridType, grid))
+
+                os.system("gpmetis graph.info 8")
 
                 os.system("%s seaice_model" %(MPAS_SEAICE_TESTCASES_RUN_COMMAND))
 

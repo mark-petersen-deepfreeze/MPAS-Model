@@ -92,17 +92,44 @@ def create_ic(gridfile, icfile):
     # calculate output variables
     uVelocity = np.empty(nVertices)
     vVelocity = np.empty(nVertices)
+    uVelocityCGrid = np.empty(nEdges)
+    vVelocityCGrid = np.empty(nEdges)
 
-    stressDivergenceU = np.empty(nEdges)
-    stressDivergenceV = np.empty(nEdges)
+    stressDivergenceU = np.empty(nVertices)
+    stressDivergenceV = np.empty(nVertices)
+    stressDivergenceUCGrid = np.empty(nEdges)
+    stressDivergenceVCGrid = np.empty(nEdges)
 
+    strain11Vertex = np.zeros(nVertices)
+    strain22Vertex = np.zeros(nVertices)
+    strain12Vertex = np.zeros(nVertices)
     strain11Edge = np.zeros(nEdges)
     strain22Edge = np.zeros(nEdges)
     strain12Edge = np.zeros(nEdges)
 
     solveVelocity = np.ones(nVertices,dtype="i")
     solveVelocityPrevious = np.ones(nVertices,dtype="i")
+    solveVelocityCGrid = np.ones(nEdges,dtype="i")
+    solveVelocityPreviousCGrid = np.ones(nEdges,dtype="i")
     solveStress = np.ones(nCells,dtype="i")
+    solveStressTri = np.ones(nVertices,dtype="i")
+
+    for iVertex in range(0,nVertices):
+
+        x = (xVertex[iVertex] - xMin)
+        y = (yVertex[iVertex] - yMin)
+
+        u, v, e11, e22, e12, divu, divv = velocities_strains_stress_divergences(x, y)
+
+        uVelocity[iVertex] = u
+        vVelocity[iVertex] = v
+
+        strain11Vertex[iVertex] = e11
+        strain22Vertex[iVertex] = e22
+        strain12Vertex[iVertex] = e12
+
+        stressDivergenceU[iVertex] = divu
+        stressDivergenceV[iVertex] = divv
 
     for iEdge in range(0,nEdges):
 
@@ -111,12 +138,15 @@ def create_ic(gridfile, icfile):
 
         u, v, e11, e22, e12, divu, divv = velocities_strains_stress_divergences(x, y)
 
+        uVelocityCGrid[iEdge] = u
+        vVelocityCGrid[iEdge] = v
+
         strain11Edge[iEdge] = e11
         strain22Edge[iEdge] = e22
         strain12Edge[iEdge] = e12
 
-        stressDivergenceU[iEdge] = divu
-        stressDivergenceV[iEdge] = divv
+        stressDivergenceUCGrid[iEdge] = divu
+        stressDivergenceVCGrid[iEdge] = divv
 
     stress11var = np.zeros((nCells, maxEdges))
     stress22var = np.zeros((nCells, maxEdges))
@@ -125,6 +155,7 @@ def create_ic(gridfile, icfile):
     stress22varTri = np.zeros((nVertices, vertexDegree))
     stress12varTri = np.zeros((nVertices, vertexDegree))
 
+# if C-grid
     for iCell in range(0, nCells):
         for iEdgeOnCell in range(0,nEdgesOnCell[iCell]):
             iEdge = edgesOnCell[iCell,iEdgeOnCell]
@@ -135,10 +166,18 @@ def create_ic(gridfile, icfile):
     for iVertex in range(0, nVertices):
         for iDegree in range(0,vertexDegree):
             iEdge = edgesOnVertex[iVertex,iDegree]
+
             stress11varTri[iVertex,iDegree] = strain11Edge[iEdge]
             stress22varTri[iVertex,iDegree] = strain22Edge[iEdge]
             stress12varTri[iVertex,iDegree] = strain12Edge[iEdge]
 
+# if B-grid
+#    for iCell in range(0, nCells):
+#        for iVertexOnCell in range(0,nEdgesOnCell[iCell]):
+#            iVertex = verticesOnCell[iCell,iVertexOnCell]
+#            stress11var[iCell,iVertexOnCell] = strain11Vertex[iVertex]
+#            stress22var[iCell,iVertexOnCell] = strain22Vertex[iVertex]
+#            stress12var[iCell,iVertexOnCell] = strain12Vertex[iVertex]
 
     # create output file
     fileOut = Dataset(icfile, "w", format="NETCDF3_CLASSIC")
@@ -155,14 +194,29 @@ def create_ic(gridfile, icfile):
     var = fileOut.createVariable("vVelocity","d",dimensions=["nVertices"])
     var[:] = vVelocity[:]
 
+    var = fileOut.createVariable("uVelocityCGrid","d",dimensions=["nEdges"])
+    var[:] = uVelocityCGrid[:]
+
+    var = fileOut.createVariable("vVelocityCGrid","d",dimensions=["nEdges"])
+    var[:] = vVelocityCGrid[:]
+
     var = fileOut.createVariable("solveVelocity","i",dimensions=["nVertices"])
     var[:] = solveVelocity[:]
 
     var = fileOut.createVariable("solveVelocityPrevious","i",dimensions=["nVertices"])
     var[:] = solveVelocityPrevious[:]
 
+    var = fileOut.createVariable("solveVelocityCGrid","i",dimensions=["nEdges"])
+    var[:] = solveVelocityCGrid[:]
+
+    var = fileOut.createVariable("solveVelocityPreviousCGrid","i",dimensions=["nEdges"])
+    var[:] = solveVelocityPreviousCGrid[:]
+
     var = fileOut.createVariable("solveStress","i",dimensions=["nCells"])
     var[:] = solveStress[:]
+
+    var = fileOut.createVariable("solveStressTri","i",dimensions=["nVertices"])
+    var[:] = solveStressTri[:]
 
     var = fileOut.createVariable("strain11var","d",dimensions=["nCells","maxEdges"])
     var[:] = stress11var[:]
@@ -200,11 +254,19 @@ def create_ic(gridfile, icfile):
     var = fileOut.createVariable("stress12varTri","d",dimensions=["nVertices","vertexDegree"])
     var[:] = stress12varTri[:]
 
-    var = fileOut.createVariable("stressDivergenceUAnalytical","d",dimensions=["nEdges"])
+# if B-grid
+    var = fileOut.createVariable("stressDivergenceUAnalytical","d",dimensions=["nVertices"])
     var[:] = stressDivergenceU[:]
 
-    var = fileOut.createVariable("stressDivergenceVAnalytical","d",dimensions=["nEdges"])
+    var = fileOut.createVariable("stressDivergenceVAnalytical","d",dimensions=["nVertices"])
     var[:] = stressDivergenceV[:]
+
+#if C-grid
+#    var = fileOut.createVariable("stressDivergenceUAnalytical","d",dimensions=["nEdges"])
+#    var[:] = stressDivergenceUCGrid[:]
+#
+#    var = fileOut.createVariable("stressDivergenceVAnalytical","d",dimensions=["nEdges"])
+#    var[:] = stressDivergenceVCGrid[:]
 
     fileOut.close()
 
@@ -224,8 +286,13 @@ def create_ics():
 #                     "0320x0320",
 #                     "0640x0640"]}
 
-    grids = {"hex": ["0082x0094"],
+    grids = {"hex": ["0082x0094",
+                     "0164x0188",
+                     "0328x0376"],
              "quad":["0080x0080"]}
+
+#    grids = {"hex": ["0082x0094"],
+#             "quad":["0080x0080"]}
 
 #    grids = {"hex": ["0082x0094",
 #                     "0164x0188"]}

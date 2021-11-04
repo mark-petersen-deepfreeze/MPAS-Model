@@ -14,21 +14,10 @@ def run_model():
         MPAS_SEAICE_TESTCASES_RUN_COMMAND = ""
 
     #operatorMethods = ["wachspress","pwl","weak"]
-    operatorMethods = ["wachspress"]
+    operatorMethods = ["wachspress", "pwl"]
 
-    #gridTypes = ["hex","quad"]
-    gridTypes = ["hex"]
-
-    #grids = {"hex" :["0082x0094",
-    #                 "0164x0188",
-    #                 "0328x0376",
-    #                 "0656x0752"],
-    #         "quad":["0080x0080",
-    #                 "0160x0160",
-    #                 "0320x0320",
-    #                 "0640x0640"]}
-    ##grids = {"hex" :["0082x0094"],
-    ##         "quad":["0080x0080"]}
+    gridTypes = ["hex","quad"]
+    #gridTypes = ["hex"]
 
     #grids = {"hex" :["0082x0094",
     #                 "0164x0188",
@@ -38,7 +27,18 @@ def run_model():
     #                 "0160x0160",
     #                 "0320x0320",
     #                 "0640x0640"]}
-    grids = {"hex" :["0082x0094"]}
+    grids = {"hex" :["0082x0094"],
+             "quad":["0080x0080"]}
+
+    #grids = {"hex" :["0082x0094",
+    #                 "0164x0188",
+    #                 "0328x0376",
+    #                 "0656x0752"],
+    #         "quad":["0080x0080",
+    #                 "0160x0160",
+    #                 "0320x0320",
+    #                 "0640x0640"]}
+    #grids = {"hex" :["0082x0094"]}
 
     for gridType in gridTypes:
 
@@ -77,7 +77,7 @@ def run_model():
                 os.system("ln -s namelist.seaice.%s namelist.seaice" %(operatorMethod))
                 os.system("ln -s streams.seaice.stress_divergence streams.seaice")
 
-                os.system("%s ../../../../../seaice_model" %(MPAS_SEAICE_TESTCASES_RUN_COMMAND))
+                os.system("%s seaice_model" %(MPAS_SEAICE_TESTCASES_RUN_COMMAND))
 
                 os.system("mv output output_%s_%s_%s" %(gridType, operatorMethod, grid))
 
