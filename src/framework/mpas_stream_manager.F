@@ -298,7 +298,7 @@ module mpas_stream_manager
     !-----------------------------------------------------------------------
     subroutine MPAS_stream_mgr_create_stream(manager, streamID, direction, filename, &
                                              filenameInterval, referenceTime, recordInterval, &
-                                             realPrecision, clobberMode, ioType, ierr) !{{{
+                                             realPrecision, clobberMode, ioType, timeInFile, ierr) !{{{
 
         use mpas_io, only : MPAS_IO_PNETCDF
 
@@ -316,6 +316,7 @@ module mpas_stream_manager
         integer, intent(in), optional :: realPrecision
         integer, intent(in), optional :: clobberMode
         integer, intent(in), optional :: ioType
+        integer, intent(in), optional :: timeInFile
         integer, intent(out), optional :: ierr
 
         type (MPAS_stream_list_type), pointer :: new_stream
@@ -366,6 +367,11 @@ module mpas_stream_manager
                new_stream % io_type = ioType
            else
                new_stream % io_type = MPAS_IO_PNETCDF
+           end if
+           if (present(timeInFile)) then
+               new_stream % io_type = timeInFile
+           else
+               new_stream % io_type = MPAS_TIMEINFILE_STANDARD
            end if
            allocate(new_stream % referenceTime)
            if (present(referenceTime)) then
@@ -1758,6 +1764,9 @@ module mpas_stream_manager
                   case (MPAS_STREAM_PROPERTY_IOTYPE)
                       stream_cursor % io_type = propertyValue
 
+                  case (MPAS_STREAM_PROPERTY_TIMEINFILE)
+                      stream_cursor % time_in_file = propertyValue
+
                   case default
                       STREAM_ERROR_WRITE('MPAS_stream_mgr_set_property(): No such property $i' COMMA intArgs=(/propertyName/))
                       STREAM_ERROR_WRITE('    or specified property is not of type integer.')
@@ -1990,6 +1999,9 @@ module mpas_stream_manager
 
             case (MPAS_STREAM_PROPERTY_IOTYPE)
                 propertyValue = stream_cursor % io_type
+
+            case (MPAS_STREAM_PROPERTY_TIMEINFILE)
+                propertyValue = stream_cursor % time_in_file
 
             case default
                 STREAM_ERROR_WRITE('MPAS_stream_mgr_get_property(): No such property $i' COMMA intArgs=(/propertyName/))
@@ -3168,7 +3180,8 @@ module mpas_stream_manager
                allocate(stream % stream)
                call MPAS_createStream(stream % stream, manager % ioContext, stream % filename, stream % io_type, MPAS_IO_WRITE,  &
                                       precision=stream % precision, clobberRecords=clobberRecords, &
-                                      clobberFiles=clobberFiles, truncateFiles=truncateFiles, ierr=local_ierr)
+                                      clobberFiles=clobberFiles, truncateFiles=truncateFiles, &
+                                      timeInFile=stream % time_in_file, ierr=local_ierr)
                stream % stream % blockWrite = stream % blockWrite
                if (local_ierr /= MPAS_STREAM_NOERR) then
                    if (local_ierr == MPAS_STREAM_CLOBBER_FILE) then
@@ -3255,7 +3268,8 @@ module mpas_stream_manager
                    !
                    call MPAS_createStream(stream % stream, manager % ioContext, stream % filename, stream % io_type, MPAS_IO_WRITE, &
                                           precision=stream % precision, clobberRecords=clobberRecords, &
-                                          clobberFiles=clobberFiles, truncateFiles=truncateFiles, ierr=local_ierr)
+                                          clobberFiles=clobberFiles, truncateFiles=truncateFiles, &
+                                          timeInFile=stream % time_in_file, ierr=local_ierr)
                    stream % stream % blockWrite = stream % blockWrite
                    if (local_ierr /= MPAS_STREAM_NOERR) then
                        if (local_ierr == MPAS_STREAM_CLOBBER_FILE) then
@@ -3668,8 +3682,8 @@ module mpas_stream_manager
                ! Build stream from pools of fields and attributes
                !
                allocate(stream % stream)
-               call MPAS_createStream(stream % stream, manager % ioContext, stream % filename, stream % io_type, MPAS_IO_READ, &
-                                      precision=stream % precision, ierr=local_ierr)
+               call MPAS_createStream(stream % stream, manager % ioContext, stream % filename, stream % io_type, MPAS_IO_WRITE, &
+                                      precision=stream % precision, timeInFile=stream % time_in_file, ierr=local_ierr)
                if (local_ierr /= MPAS_STREAM_NOERR) then
                    if (local_ierr == MPAS_IO_ERR_NOEXIST_READ) then
                        write(err_string,'(a)') 'Stream '''//trim(stream % name)//''' attempted to read non-existent file '''//trim(stream % filename)//''''
@@ -5779,7 +5793,7 @@ end module mpas_stream_manager
 
 
 subroutine stream_mgr_create_stream_c(manager_c, streamID_c, direction_c, filename_c, filename_intv_c, ref_time_c, rec_intv_c, &
-                                      immutable_c, precision_c, clobber_c, iotype_c, ierr_c) bind(c) !{{{
+                                      immutable_c, precision_c, clobber_c, iotype_c, timeinfile_c, ierr_c) bind(c) !{{{
 
     use mpas_c_interfacing, only : mpas_c_to_f_string
     use iso_c_binding, only : c_char, c_int, c_ptr, c_f_pointer
@@ -5788,13 +5802,15 @@ subroutine stream_mgr_create_stream_c(manager_c, streamID_c, direction_c, filena
                                         MPAS_STREAM_PROPERTY_FILENAME_INTV, MPAS_STREAM_PROPERTY_REF_TIME, &
                                         MPAS_STREAM_PROPERTY_RECORD_INTV, MPAS_STREAM_PROPERTY_PRECISION, &
                                         MPAS_STREAM_PROPERTY_CLOBBER, MPAS_STREAM_CLOBBER_NEVER, MPAS_STREAM_CLOBBER_APPEND, &
-                                        MPAS_STREAM_CLOBBER_TRUNCATE, MPAS_STREAM_CLOBBER_OVERWRITE, MPAS_STREAM_PROPERTY_IOTYPE
+                                        MPAS_STREAM_CLOBBER_TRUNCATE, MPAS_STREAM_CLOBBER_OVERWRITE, MPAS_STREAM_PROPERTY_IOTYPE, &
+                                        MPAS_STREAM_PROPERTY_TIMEINFILE
     use mpas_stream_manager, only : MPAS_stream_mgr_create_stream, MPAS_stream_mgr_set_property
     use mpas_kind_types, only : StrKIND
     use mpas_derived_types, only : MPAS_LOG_ERR
     use mpas_log
     use mpas_io, only : MPAS_IO_SINGLE_PRECISION, MPAS_IO_DOUBLE_PRECISION, MPAS_IO_NATIVE_PRECISION, &
-                        MPAS_IO_NETCDF, MPAS_IO_PNETCDF, MPAS_IO_NETCDF4, MPAS_IO_PNETCDF5
+                        MPAS_IO_NETCDF, MPAS_IO_PNETCDF, MPAS_IO_NETCDF4, MPAS_IO_PNETCDF5, &
+                        MPAS_TIMEINFILE_STANDARD, MPAS_TIMEINFILE_CFCOMPLIANT
 
     implicit none
 
@@ -5809,12 +5825,13 @@ subroutine stream_mgr_create_stream_c(manager_c, streamID_c, direction_c, filena
     integer(kind=c_int) :: precision_c
     integer(kind=c_int) :: clobber_c
     integer(kind=c_int) :: iotype_c
+    integer(kind=c_int) :: timeinfile_c
     integer(kind=c_int) :: ierr_c
 
     type (MPAS_streamManager_type), pointer :: manager
     character(len=StrKIND) :: streamID, filename, filename_interval, reference_time, record_interval
     integer :: direction, immutable, prec, ierr
-    integer :: clobber_mode, iotype
+    integer :: clobber_mode, iotype, timeinfile
 
     call c_f_pointer(manager_c, manager)
     call mpas_c_to_f_string(streamID_c, streamID)
@@ -5857,6 +5874,14 @@ subroutine stream_mgr_create_stream_c(manager_c, streamID_c, direction_c, filena
        iotype = MPAS_IO_PNETCDF
     end if
 
+    if (timeinfile_c == 0) then
+       timeinfile = MPAS_TIMEINFILE_STANDARD
+    else if (timeinfile_c == 1) then
+       timeinfile = MPAS_TIMEINFILE_CFCOMPLIANT
+    else
+       timeinfile = MPAS_TIMEINFILE_STANDARD
+    end if
+
     STREAM_DEBUG_WRITE('Creating stream from c...')
     
     !
@@ -5881,9 +5906,10 @@ subroutine stream_mgr_create_stream_c(manager_c, streamID_c, direction_c, filena
         call MPAS_stream_mgr_set_property(manager, streamID, MPAS_STREAM_PROPERTY_PRECISION, prec, ierr=ierr)
         call MPAS_stream_mgr_set_property(manager, streamID, MPAS_STREAM_PROPERTY_CLOBBER, clobber_mode, ierr=ierr)
         call MPAS_stream_mgr_set_property(manager, streamID, MPAS_STREAM_PROPERTY_IOTYPE, iotype, ierr=ierr)
+        call MPAS_stream_mgr_set_property(manager, streamID, MPAS_STREAM_PROPERTY_TIMEINFILE, timeInFile, ierr=ierr)
     else
         call MPAS_stream_mgr_create_stream(manager, streamID, direction, filename, realPrecision=prec, &
-                                           clobberMode=clobber_mode, ioType=iotype, ierr=ierr)
+                                           clobberMode=clobber_mode, ioType=iotype, timeInFile=timeInFile, ierr=ierr)
     end if
 
     if (reference_time /= 'initial_time') then

@@ -25,7 +25,7 @@
 /*
  *  Interface routines for building streams at run-time; defined in mpas_stream_manager.F
  */
-void stream_mgr_create_stream_c(void *, const char *, int *, const char *, const char *, const char *, const char *, int *, int *, int *, int *, int *);
+void stream_mgr_create_stream_c(void *, const char *, int *, const char *, const char *, const char *, const char *, int *, int *, int *, int *, int *, int *);
 void stream_mgr_add_field_c(void *, const char *, const char *, const char *, int *);
 void stream_mgr_add_immutable_stream_fields_c(void *, const char *, const char *, const char *, int *);
 void stream_mgr_add_pool_c(void *, const char *, const char *, const char *, int *);
@@ -1054,6 +1054,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 	const char *interval_in, *interval_out, *packagelist;
 	const char *clobber;
 	const char *iotype;
+	const char *timeinfile;
 	const char *streamID2, *interval_in2, *interval_out2;
 	char interval_name[256];
 	char match_stream_name[256];
@@ -1069,6 +1070,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 	int itype;
 	int iclobber;
 	int i_iotype;
+	int itimeinfile;
 	int iprec;
 	int immutable;
 	int stream_found, copy_start, copy_from, copy_to;
@@ -1115,6 +1117,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		packagelist = ezxml_attr(stream_xml, "packages");
 		clobber = ezxml_attr(stream_xml, "clobber_mode");
 		iotype = ezxml_attr(stream_xml, "io_type");
+		timeinfile = ezxml_attr(stream_xml, "time_in_file");
 
 		/* Extract the input interval, if it refer to other streams */
 		if ( interval_in ) {
@@ -1266,6 +1269,26 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 			}
 		}
 
+		/* NB: These timeinfile constants must match those in the mpas_stream_manager module! */
+		itimeinfile = 0;
+		if (timeinfile != NULL) {
+			if (strstr(timeinfile, "standard") != NULL) {
+				itimeinfile = 0;
+				snprintf(msgbuf, MSGSIZE, "        %-20s%s", "time in file type:", "standard");
+				mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
+			}
+			else if (strstr(timeinfile, "CFCompliant") != NULL) {
+				itimeinfile = 1;
+				snprintf(msgbuf, MSGSIZE, "        %-20s%s", "time in file type:", "CF Compliant (will write Time_bnds)");
+				mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
+			}
+			else {
+				itimeinfile = 0;
+				snprintf(msgbuf, MSGSIZE, "        *** unrecognized time_in_file specification; defaulting to standard");
+				mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
+			}
+		}
+
 		/* NB: These type constants must match those in the mpas_stream_manager module! */
 		if (strstr(direction, "input") != NULL && strstr(direction, "output") != NULL) {
 			itype = 3;
@@ -1337,7 +1360,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		}
 
 		stream_mgr_create_stream_c(manager, streamID, &itype, filename_template, filename_interval_string, ref_time_local, rec_intv_local,
-					&immutable, &iprec, &iclobber, &i_iotype, &err);
+					&immutable, &iprec, &iclobber, &i_iotype, &itimeinfile, &err);
 		if (err != 0) {
 			*status = 1;
 			return;
@@ -1646,7 +1669,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		}
 
 		stream_mgr_create_stream_c(manager, streamID, &itype, filename_template, filename_interval_string, ref_time_local, rec_intv_local,
-					&immutable, &iprec, &iclobber, &i_iotype, &err);
+					&immutable, &iprec, &iclobber, &i_iotype, &itimeinfile, &err);
 		if (err != 0) {
 			*status = 1;
 			return;

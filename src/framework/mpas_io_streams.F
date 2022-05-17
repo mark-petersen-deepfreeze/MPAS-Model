@@ -78,7 +78,7 @@ module mpas_io_streams
 
 
    subroutine MPAS_createStream(stream, ioContext, fileName, ioFormat, ioDirection, precision, &
-                                clobberRecords, clobberFiles, truncateFiles, ierr)
+                                clobberRecords, clobberFiles, truncateFiles, timeInFile, ierr)
 
       implicit none
 
@@ -88,6 +88,7 @@ module mpas_io_streams
       integer, intent(in) :: ioFormat
       integer, intent(in) :: ioDirection
       integer, intent(in), optional :: precision
+      integer, intent(in), optional :: timeInFile
       logical, intent(in), optional :: clobberRecords
       logical, intent(in), optional :: clobberFiles
       logical, intent(in), optional :: truncateFiles

@@ -30,6 +30,10 @@
                          MPAS_IO_NATIVE_PRECISION = MPAS_IO_DOUBLE_PRECISION
 #endif
 
+   ! time in file
+   integer, parameter :: MPAS_TIMEINFILE_STANDARD    = 14, &
+                         MPAS_TIMEINFILE_CFCOMPLIANT = 15
+
    ! Unlimited / record dimension
    integer, parameter :: MPAS_IO_UNLIMITED_DIM = -123456
 

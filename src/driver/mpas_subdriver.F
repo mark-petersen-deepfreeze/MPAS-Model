@@ -81,6 +81,8 @@ module mpas_subdriver
       character(len=StrKIND) :: iotype
       logical :: streamsExists
       integer :: mesh_iotype
+! mrp delete later: this is probably not needed for init, just for writing output
+!      integer :: mesh_timeinfile
 
       interface
          subroutine xml_stream_parser(xmlname, mgr_p, comm, ierr) bind(c)
@@ -276,6 +278,16 @@ module mpas_subdriver
          mesh_iotype = MPAS_IO_PNETCDF
       end if
 
+! mrp delete later: this is probably not needed for init, just for writing output
+!      if (trim(timeinfile) == 'standard') then
+!         mesh_timeinfile = MPAS_TIMEINFILE_STANDARD
+!      else if (trim(timeinfile) == 'CFCompliant'.or. &
+!               trim(timeinfile) == 'cfcompliant') then
+!         mesh_timeinfile = MPAS_TIMEINFILE_CFCOMPLIANT
+!      else
+!         mesh_timeinfile = MPAS_TIMEINFILE_STANDARD
+!      end if
+!
       start_time = mpas_get_clock_time(domain_ptr % clock, MPAS_START_TIME, ierr)
       if ( trim(ref_time_temp) == 'initial_time' ) then
           call mpas_get_time(start_time, dateTimeString=ref_time_temp, ierr=ierr)

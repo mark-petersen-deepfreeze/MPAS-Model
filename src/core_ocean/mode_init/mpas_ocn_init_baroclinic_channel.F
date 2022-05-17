@@ -213,6 +213,7 @@ contains
         ! Set vertCoordMovementWeights
         vertCoordMovementWeights(:) = 1.0_RKIND
 
+print *, 'xMaxGlobal', xMaxGlobal, 'xMinGlobal', xMinGlobal
         do iCell = 1, nCellsSolve
            ! Determine cutoff location for large sin wave
            yOffset = perturbationWidth * sin (6.0_RKIND * pii * (xCell(iCell) - xMinGlobal) / (xMaxGlobal - xMinGlobal))

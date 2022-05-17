@@ -14,6 +14,7 @@
         logical :: immutable = .false.
         logical :: active_stream = .true.
         logical :: blockWrite = .false.
+        logical :: CF_compliant_time = .false.
         character(len=StrKIND) :: filename
         character(len=StrKIND) :: filename_template
         character(len=StrKIND) :: filename_interval
@@ -39,6 +40,9 @@
         character(len=StrKIND) :: name
         type (MPAS_stream_list_type), pointer :: xref => null()
         type (MPAS_stream_list_type), pointer :: next => null()
+
+        ! Used by CF compliant time
+        real (kind=RKIND), dimension(:), pointer :: Time_bnds => null()
 
     end type MPAS_stream_list_type
 
