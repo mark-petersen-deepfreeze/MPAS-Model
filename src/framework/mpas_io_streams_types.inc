@@ -52,7 +52,6 @@
       integer :: ioDirection
       integer :: defaultPrecision = MPAS_IO_NATIVE_PRECISION
       logical :: clobberRecords = .false.
-      logical :: CF_compliant = .false.
       ! When blockWrite is true, a stream only writes a single block.
       ! This option is really only useful for writing debugging streams out.
       logical :: blockWrite = .false.

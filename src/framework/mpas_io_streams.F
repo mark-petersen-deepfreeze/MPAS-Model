@@ -1754,13 +1754,14 @@ module mpas_io_streams
          !
 !call mpas_log_write('... defining var to low-level interface with ndims $i', intArgs=(/ndims/))
 
-         fieldNameLocal = fieldName
-         if (stream % CF_compliant) then
-            if (fieldName(1:9)=='time_bnds') then
+         if (fieldName(1:9)=='CF_CHANGE') then
+            if (fieldName(10:18)=='time_bnds') then
                fieldNameLocal = 'time_bnds'
-            else if (fieldName(1:4)=='time') then
+            else if (fieldName(10:13)=='time') then
                fieldNameLocal = 'time'
             end if
+         else
+            fieldNameLocal = fieldName
          end if
          call MPAS_io_def_var(stream % fileHandle, trim(fieldNameLocal), fieldType, dimNamesLocal(1:ndims), precision=precision, ierr=io_err)
          call MPAS_io_err_mesg(io_err, .false.)

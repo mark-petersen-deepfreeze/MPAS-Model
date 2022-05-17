@@ -1916,9 +1916,6 @@ module mpas_stream_manager
                    case (MPAS_STREAM_PROPERTY_IMMUTABLE)
                        stream_cursor % immutable = propertyValue
 
-                   case (MPAS_STREAM_PROPERTY_CFCOMPLIANT)
-                       stream_cursor % CF_compliant = propertyValue
-
                    case default
                        STREAM_ERROR_WRITE('  MPAS_stream_mgr_set_property(): No such property $i' COMMA intArgs=(/propertyName/))
                        STREAM_ERROR_WRITE('      or specified property is not of type logical.')
@@ -2164,9 +2161,6 @@ module mpas_stream_manager
 
             case (MPAS_STREAM_PROPERTY_IMMUTABLE)
                 propertyValue = stream_cursor % immutable
-
-            case (MPAS_STREAM_PROPERTY_CFCOMPLIANT)
-                propertyValue = stream_cursor % CF_compliant
 
             case default
                 STREAM_ERROR_WRITE('MPAS_stream_mgr_get_property(): No such property $i' COMMA intArgs=(/propertyName/))
