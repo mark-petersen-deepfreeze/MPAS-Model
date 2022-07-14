@@ -432,6 +432,12 @@ cray-nersc:
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
 gnu-nersc:
+	GFORTRAN_GTE_10=$$(expr `ftn -dumpversion | cut -f1 -d.` \>= 10) ;\
+	if [ "$${GFORTRAN_GTE_10}" = "1" ]; then \
+	    EXTRA_FFLAGS="-fallow-argument-mismatch"; \
+	else \
+	    EXTRA_FFLAGS=""; \
+	fi; \
 	( $(MAKE) all \
 	"FC_PARALLEL = ftn" \
 	"CC_PARALLEL = cc" \
@@ -439,20 +445,25 @@ gnu-nersc:
 	"FC_SERIAL = ftn" \
 	"CC_SERIAL = cc" \
 	"CXX_SERIAL = CC" \
+	"FFLAGS_FPIEEE = " \
 	"FFLAGS_PROMOTION = -fdefault-real-8 -fdefault-double-8" \
-	"FFLAGS_OPT = -O3 -m64 -ffree-line-length-none -fconvert=big-endian -ffree-form" \
+	"FFLAGS_OPT = -O3 -m64 -ffree-line-length-none -fconvert=big-endian -ffree-form -ffpe-summary=none $${EXTRA_FFLAGS}" \
 	"CFLAGS_OPT = -O3 -m64" \
 	"CXXFLAGS_OPT = -O3 -m64" \
 	"LDFLAGS_OPT = -O3 -m64" \
-	"FFLAGS_DEBUG = -g -m64 -ffree-line-length-none -fconvert=big-endian -ffree-form" \
+	"FFLAGS_DEBUG = -g -m64 -ffree-line-length-none -fconvert=big-endian -ffree-form -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,overflow -ffpe-summary=none $${EXTRA_FFLAGS}" \
 	"CFLAGS_DEBUG = -g -m64" \
 	"CXXFLAGS_DEBUG = -g -m64" \
 	"LDFLAGS_DEBUG = -g -m64" \
+	"FFLAGS_OMP = -fopenmp" \
+	"CFLAGS_OMP = -fopenmp" \
 	"BUILD_TARGET = $(@)" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"SERIAL = $(SERIAL)" \
 	"USE_PAPI = $(USE_PAPI)" \
+	"OPENMP = $(OPENMP)" \
+	"USE_SHTNS = $(USE_SHTNS)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI $(FILE_OFFSET) $(ZOLTAN_DEFINE)" )
 
 intel-nersc:
