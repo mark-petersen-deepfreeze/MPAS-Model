@@ -125,7 +125,7 @@ module ocn_tracer_advection_std
 
       allocate(high_order_horiz_flux(nVertLevels, nEdges), &
                tracer_cur(nVertLevels, nCells), &
-               high_order_vert_flux(nVertLevels, nCells))
+               high_order_vert_flux(nVertLevels+1, nCells))
 
       ! Loop over tracers. One tracer is advected at a time. It is copied into a temporary array in order to improve locality
       do iTracer = 1, num_tracers
